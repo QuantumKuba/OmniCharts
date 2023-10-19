@@ -9,6 +9,7 @@
 import { onMount, onDestroy } from 'svelte'
 import Events from '../../core/events.js'
 import dpr from '../../stuff/dprCanvas.js'
+import math from "../../stuff/math.js";
 
 export let id // Pane/grid id
 export let props = {} // General props
@@ -29,7 +30,7 @@ events.on(`${rrUpdId}:update-rr`, update)
 events.on(`${rrUpdId}:run-rr-task`, onTask)
 
 $:rrStyle = `
-    left: ${layout.sbMax[0]}px;
+    left: ${layout.sbMax[0] + props.offset}px;
     top: ${layout.offset || 0}px;
     position: absolute;
     height: ${layout.height}px;
@@ -69,6 +70,7 @@ export function getInput() {
 }
 
 function setup() {
+    window.Math2 = math;
 
     [canvas, ctx] = dpr.setup(
         canvasId, layout.width, layout.height)

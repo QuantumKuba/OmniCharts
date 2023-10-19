@@ -17,7 +17,7 @@ let events = Events.instance(props.id)
 let legendRR = 0 // Re-render key
 
 $:style = `
-    left: ${layout.sbMax[0] + 5}px;
+    left: ${layout.sbMax[0] + props.offset + 5}px;
     top: ${(layout.offset || 0) + 5}px;
     position: absolute;
 `

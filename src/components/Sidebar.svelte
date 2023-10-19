@@ -48,7 +48,7 @@ let showSwitch = false
 events.on(`${sbUpdId}:update-sb`, update)
 
 $:sbStyle = `
-    left: ${S * (layout.width + layout.sbMax[0])}px;
+    left: ${S * (layout.width + layout.sbMax[0] + props.offset)}px;
     top: ${layout.offset || 0}px;
     position: absolute;
     background: ${props.colors.back};
@@ -241,7 +241,6 @@ function calcRange(diff1 = 1, diff2 = 1) {
 }
 
 function rezoomRange(delta, diff1, diff2) {
-
     let yTransform = getYtransform()
     if (!yTransform || yTransform.auto) return
 

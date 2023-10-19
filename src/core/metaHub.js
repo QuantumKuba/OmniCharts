@@ -1,16 +1,16 @@
-
 // Container for y-transforms, meta functions, other info
 // about overlays (e.g. yRange)
 
 import Utils from '../stuff/utils.js'
 import Events from './events.js'
 import DataHub from './dataHub.js'
+import Keys from "../stuff/keys.js";
 
 class MetaHub {
 
     constructor(nvId) {
 
-        let events = Events.instance(nvId)
+        let events = Events.instance(nvId);
         this.hub = DataHub.instance(nvId)
         this.events = events
 
@@ -19,13 +19,27 @@ class MetaHub {
         events.on('meta:select-overlay', this.onOverlaySelect.bind(this))
         events.on('meta:grid-mousedown', this.onGridMousedown.bind(this))
         events.on('meta:scroll-lock', this.onScrollLock.bind(this))
+        events.on('meta:tool-selected', this.toolSelected.bind(this));
+        events.on('meta:drawing-mode-off', this.drawingModeOff.bind(this));
+        events.on('meta:change-tool-settings', this.changeToolSettings.bind(this));
+        events.on('meta:object-selected', this.objectSelected.bind(this));
+        events.on('meta:remove-all-tools', this.removeAllTools.bind(this));
+
+        document.addEventListener('keydown', ({key}) => key === 'Delete' || key === 'Backspace' ? this.removeTool() : void 0);
+        document.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        });
 
         // Persistent meta storage
-        this.storage = {}
+        this.storage = {};
+
+        this.tool = 'Cursor';
+        this.drawingMode = false;
+        this.selectedTool = undefined;
     }
 
     init(props) {
-
         this.panes = 0 // Panes processed
         // [API] read-only
         this.legendFns = [] // Legend formatters
@@ -46,7 +60,111 @@ class MetaHub {
         this.ohlcMap = [] // time => OHLC map of the main ov
         this.ohlcFn = undefined // OHLC mapper function
         this.scrollLock = false // Scroll lock state
+    }
 
+    // User tapped grid (& deselected all overlays)
+    onGridMousedown(event) {
+        this.objectSelected({id: undefined});
+
+        if (event[1].shiftKey) {
+            this.events.emit('tool-selected', {type: 'RangeTool', props: {shiftMode: true, initYPos: event[1].layerY}});
+            return void 0;
+        }
+
+        if (event[1].which === 3) {
+            this.events.emit('tool-selected', {type: 'LineToolHorizontalRay'});
+        }
+
+        if (!this.drawingMode && this.tool === 'Cursor') {
+            this.removeRangeTool();
+        }
+
+        this.selectedOverlay = undefined
+        this.events.emit('$overlay-select', {
+            index: undefined,
+            ov: undefined
+        });
+    }
+
+    objectSelected = ({id}) => {
+        this.selectedTool = id;
+    }
+
+    removeAllTools = () => {
+        const drawingOverlayIndexes = this.hub.data.panes[0].overlays.map((overlay, idx) => overlay.drawingTool ? idx : undefined).filter(Boolean);
+        if (drawingOverlayIndexes.length) {
+            this.hub.data.panes[0].overlays = this.hub.data.panes[0].overlays.filter((overlay, idx) => !drawingOverlayIndexes.includes(idx));
+        }
+        this.selectedTool = undefined;
+        this.tool = undefined;
+        this.drawingModeOff();
+        this.events.emitSpec('chart', 'update-layout');
+    }
+
+    removeTool = () => {
+        this.removeDrawingOverlayTool(this.selectedTool);
+        this.selectedTool = undefined;
+        this.tool = undefined;
+        this.drawingModeOff();
+
+        this.events.emitSpec('chart', 'update-layout');
+    }
+
+    changeToolSettings = (event) => {
+        this.updateToolSettings(event);
+    }
+
+    drawingModeOff = () => {
+        this.tool = 'Cursor';
+        this.drawingMode = false;
+    }
+
+    toolSelected = (event) => {
+        console.log(this.drawingMode);
+        if (this.drawingMode) {
+            return void 0;
+        }
+
+        this.tool = event.type;
+        this.drawingMode = event.type !== 'Cursor';
+        this.buildTool(event.props);
+    }
+
+    buildTool = (props = {}) => {
+        this.hub.data.panes[0].overlays.push({
+            name: this.tool + Math.random(),
+            type: this.tool,
+            id: Math.random(),
+            drawingTool: true,
+            data: [[]],
+            props: props,
+            settings: {
+                zIndex: 0
+            }
+        });
+    }
+
+    updateToolSettings = ({id, pins}) => {
+        const toolIdx = this.hub.data.panes[0].overlays.findIndex((overlay) => overlay.id === id);
+        if (toolIdx !== -1) {
+            this.hub.data.panes[0].overlays[toolIdx].props = {pins};
+        }
+
+        this.events.emit('commit-tool-changes');
+    }
+
+    removeDrawingOverlayTool = (toolId) => {
+        const drawingOverlayIdx = this.hub.data.panes[0].overlays.findIndex((overlay) => toolId === overlay.id);
+        if (drawingOverlayIdx !== -1) {
+            this.hub.data.panes[0].overlays.splice(drawingOverlayIdx, 1);
+        }
+    }
+
+    removeRangeTool = () => {
+        const drawingOverlayIdx = this.hub.data.panes[0].overlays.findIndex((overlay) => overlay.type === 'RangeTool');
+        if (drawingOverlayIdx !== -1) {
+            this.hub.data.panes[0].overlays.splice(drawingOverlayIdx, 1);
+        }
     }
 
     // Extract meta functions from overlay
@@ -151,11 +269,11 @@ class MetaHub {
             let [type, uuid1, uuid2] = hash.split(':')
             let pane = this.hub.panes().find(x => x.uuid === uuid1)
             if (!pane) continue
-            switch(type) {
+            switch (type) {
                 case 'yts': // Y-transforms
                     if (!yts[pane.id]) yts[pane.id] = []
-                    yts[pane.id][uuid2] =  this.storage[hash]
-                break
+                    yts[pane.id][uuid2] = this.storage[hash]
+                    break
             }
         }
         this.store() // Store new state
@@ -211,15 +329,6 @@ class MetaHub {
         })
     }
 
-    // User tapped grid (& deselected all overlays)
-    onGridMousedown(event) {
-        this.selectedOverlay = undefined
-        this.events.emit('$overlay-select', {
-            index: undefined,
-            ov: undefined
-        })
-    }
-
     // Overlay/user set lock on scrolling
     onScrollLock(event) {
         this.scrollLock = event
@@ -236,4 +345,4 @@ function instance(id) {
     return instances[id]
 }
 
-export default { instance }
+export default {instance}

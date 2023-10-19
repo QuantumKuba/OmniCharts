@@ -1,4 +1,3 @@
-
 const SECOND = 1000
 const MINUTE = SECOND * 60
 const MINUTE3 = MINUTE * 3
@@ -15,8 +14,8 @@ const YEAR = DAY * 365
 
 const MONTHMAP = [
     "Jan", "Feb", "Mar", "Apr",
-    "May", "Jun","Jul", "Aug",
-    "Sep", "Oct","Nov", "Dec"
+    "May", "Jun", "Jul", "Aug",
+    "Sep", "Oct", "Nov", "Dec"
 ]
 
 // Grid time steps
@@ -82,7 +81,7 @@ const ChartConfig = {
     L_BTN_MARGIN: '-6px 0 -6px 0', // css margin
     SCROLL_WHEEL: 'prevent', // Scroll wheel morde, 'prevent', 'pass', 'click',
     QUANTIZE_AFTER: 0, // Quantize cursor after, ms
-    AUTO_PRE_SAMPLE: 10 // Sample size for auto-precision
+    AUTO_PRE_SAMPLE: 10, // Sample size for auto-precision
 }
 
 ChartConfig.FONT =
@@ -97,38 +96,38 @@ const IB_TF_WARN =
     `otherwise you can get an unexpected behaviour`
 
 const MAP_UNIT = {
-  "1s": SECOND,
-  "5s": SECOND * 5,
-  "10s": SECOND * 10,
-  "20s": SECOND * 20,
-  "30s": SECOND * 30,
-  "1m": MINUTE,
-  "3m": MINUTE3,
-  "5m": MINUTE5,
-  "15m": MINUTE15,
-  "30m": MINUTE30,
-  "1H": HOUR,
-  "2H": HOUR * 2,
-  "3H": HOUR * 3,
-  "4H": HOUR4,
-  "12H": HOUR12,
-  "1D": DAY,
-  "1W": WEEK,
-  "1M": MONTH,
-  "1Y": YEAR,
-  // Lower case variants
-  "1h": HOUR,
-  "2h": HOUR * 2,
-  "3h": HOUR * 3,
-  "4h": HOUR4,
-  "12h": HOUR12,
-  "1d": DAY,
-  "1w": WEEK,
-  "1y": YEAR
+    "1s": SECOND,
+    "5s": SECOND * 5,
+    "10s": SECOND * 10,
+    "20s": SECOND * 20,
+    "30s": SECOND * 30,
+    "1m": MINUTE,
+    "3m": MINUTE3,
+    "5m": MINUTE5,
+    "15m": MINUTE15,
+    "30m": MINUTE30,
+    "1H": HOUR,
+    "2H": HOUR * 2,
+    "3H": HOUR * 3,
+    "4H": HOUR4,
+    "12H": HOUR12,
+    "1D": DAY,
+    "1W": WEEK,
+    "1M": MONTH,
+    "1Y": YEAR,
+    // Lower case variants
+    "1h": HOUR,
+    "2h": HOUR * 2,
+    "3h": HOUR * 3,
+    "4h": HOUR4,
+    "12h": HOUR12,
+    "1d": DAY,
+    "1w": WEEK,
+    "1y": YEAR
 }
 
 // Half-pixel adjustment to the canvas
-const HPX = - 0.5
+const HPX = -0.5
 
 export default {
     SECOND: SECOND,

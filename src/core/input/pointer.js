@@ -1,4 +1,3 @@
-
 // Regular mouse/touch input. The object can be
 // attached to a renderer.
 // ~ Information flow ~
@@ -47,13 +46,13 @@ export default class Input {
 
     mouseEvents(cmd) {
         ['mousemove', 'mouseout', 'mouseup', 'mousedown', 'click']
-        .forEach(e => {
-            if (cmd === 'addEventListener') {
-                // Save the handler to remove it later
-                this['_' + e] = this[e].bind(this)
-            }
-            this.canvas[cmd](e, this['_' + e])
-        })
+            .forEach(e => {
+                if (cmd === 'addEventListener') {
+                    // Save the handler to remove it later
+                    this['_' + e] = this[e].bind(this)
+                }
+                this.canvas[cmd](e, this['_' + e])
+            })
     }
 
     async listeners() {
@@ -65,10 +64,10 @@ export default class Input {
 
         let mc = this.mc = new Hammer.Manager(this.canvas)
         let T = Utils.isMobile ? 10 : 0
-        mc.add(new Hammer.Pan({ threshold: T}))
+        mc.add(new Hammer.Pan({threshold: T}))
         mc.add(new Hammer.Tap())
-        mc.add(new Hammer.Pinch({ threshold: 0}))
-        mc.get('pinch').set({ enable: true })
+        mc.add(new Hammer.Pinch({threshold: 0}))
+        mc.get('pinch').set({enable: true})
         if (Utils.isMobile) mc.add(new Hammer.Press())
 
         mc.on('panstart', event => {
@@ -137,7 +136,7 @@ export default class Input {
             this.events.emitSpec(this.rrId, 'update-rr')
         })
 
-        mc.on('pinchstart', () =>  {
+        mc.on('pinchstart', () => {
             this.drug = null
             this.pinch = {
                 t: this.range[1] - this.range[0],
@@ -145,7 +144,7 @@ export default class Input {
             }
         })
 
-        mc.on('pinchend', () =>  {
+        mc.on('pinchend', () => {
             this.pinch = null
         })
 
@@ -157,7 +156,7 @@ export default class Input {
             if (!Utils.isMobile) return
             if (this.fade) this.fade.stop()
             this.calcOffset()
-            this.emitCursorCoord(event, { mode: 'aim' })
+            this.emitCursorCoord(event, {mode: 'aim'})
             setTimeout(() => this.events.emitSpec(this.rrId, 'update-rr'))
             this.simMousedown(event)
         })
@@ -169,9 +168,17 @@ export default class Input {
         add("gestureend", this.gestureend)
     }
 
-    gesturestart(event) { event.preventDefault() }
-    gesturechange(event) { event.preventDefault() }
-    gestureend(event) { event.preventDefault() }
+    gesturestart(event) {
+        event.preventDefault()
+    }
+
+    gesturechange(event) {
+        event.preventDefault()
+    }
+
+    gestureend(event) {
+        event.preventDefault()
+    }
 
     mousemove(event) {
         if (Utils.isMobile) return
@@ -187,7 +194,7 @@ export default class Input {
 
     mouseout(event) {
         if (Utils.isMobile) return
-        this.events.emit('cursor-changed', { visible: false })
+        this.events.emit('cursor-changed', {visible: false})
         this.propagate('mouseout', event)
     }
 
@@ -206,68 +213,68 @@ export default class Input {
     }
 
     // Simulated mousedown (for mobile)
-   simMousedown(event) {
-       if (event.srcEvent.defaultPrevented) return
-       this.events.emit('grid-mousedown', [this.gridId, event])
-       this.propagate('mousemove', this.touch2mouse(event))
-       this.events.emitSpec(this.rrId, 'update-rr')
-       this.propagate('mousedown', this.touch2mouse(event))
-       setTimeout(() => {
-           this.propagate('click', this.touch2mouse(event))
-       })
-   }
+    simMousedown(event) {
+        if (event.srcEvent.defaultPrevented) return
+        this.events.emit('grid-mousedown', [this.gridId, event])
+        this.propagate('mousemove', this.touch2mouse(event))
+        this.events.emitSpec(this.rrId, 'update-rr')
+        this.propagate('mousedown', this.touch2mouse(event))
+        setTimeout(() => {
+            this.propagate('click', this.touch2mouse(event))
+        })
+    }
 
-   // Convert touch to "mouse" event
-   touch2mouse(e) {
-       this.calcOffset()
-       return {
-           original: e.srcEvent,
-           layerX: e.center.x + this.offsetX,
-           layerY: e.center.y + this.offsetY,
-           preventDefault: function() {
-               this.original.preventDefault()
-           }
-       }
-   }
+    // Convert touch to "mouse" event
+    touch2mouse(e) {
+        this.calcOffset()
+        return {
+            original: e.srcEvent,
+            layerX: e.center.x + this.offsetX,
+            layerY: e.center.y + this.offsetY,
+            preventDefault: function () {
+                this.original.preventDefault()
+            }
+        }
+    }
 
-   click(event) {
-       this.propagate('click', event)
-   }
+    click(event) {
+        this.propagate('click', event)
+        this.events.emit('grid-click', [this.gridId, event])
+    }
 
-   emitCursorCoord(event, add = {}) {
-       this.events.emit('cursor-changed', Object.assign({
-           gridId: this.gridId,
-           x: event.center.x + this.offsetX,
-           y: event.center.y + this.offsetY //+ this.layout.offset
-       }, add))
-   }
+    emitCursorCoord(event, add = {}) {
+        this.events.emit('cursor-changed', Object.assign({
+            gridId: this.gridId,
+            x: event.center.x + this.offsetX,
+            y: event.center.y + this.offsetY //+ this.layout.offset
+        }, add))
+    }
 
-   panFade(event) {
-       let dt = Utils.now() - this.drug.t0
-       let dx = this.range[1] - this.drug.r[1]
-       let v = 42 * dx / dt
-       let v0 = Math.abs(v * 0.01)
-       if (dt > 500) return
-       if (this.fade) this.fade.stop()
-       this.fade = new FrameAnimation(self => {
-           v *= 0.85
-           if (Math.abs(v) < v0) {
-               self.stop()
-           }
-           this.range[0] += v
-           this.range[1] += v
-           this.changeRange()
-       })
-   }
+    panFade(event) {
+        let dt = Utils.now() - this.drug.t0
+        let dx = this.range[1] - this.drug.r[1]
+        let v = 42 * dx / dt
+        let v0 = Math.abs(v * 0.01)
+        if (dt > 500) return
+        if (this.fade) this.fade.stop()
+        this.fade = new FrameAnimation(self => {
+            v *= 0.85
+            if (Math.abs(v) < v0) {
+                self.stop()
+            }
+            this.range[0] += v
+            this.range[1] += v
+            this.changeRange()
+        })
+    }
 
-   calcOffset() {
-       let rect = this.canvas.getBoundingClientRect()
-       this.offsetX = -rect.x
-       this.offsetY = -rect.y
-   }
+    calcOffset() {
+        let rect = this.canvas.getBoundingClientRect()
+        this.offsetX = -rect.x
+        this.offsetY = -rect.y
+    }
 
-   mousezoom(delta, event) {
-
+    mousezoom(delta, event) {
         if (this.meta.scrollLock) return
 
         // TODO: for mobile
@@ -309,7 +316,7 @@ export default class Input {
         let tl = this.props.config.ZOOM_MODE === 'tl'
         if (event.originalEvent.ctrlKey || tl) {
             let offset = event.originalEvent.offsetX
-            let diff1 = offset / (this.canvas.width/dpr-1) * diff
+            let diff1 = offset / (this.canvas.width / dpr - 1) * diff
             let diff2 = diff - diff1
             this.range[0] -= diff1
             this.range[1] += diff2
@@ -319,7 +326,7 @@ export default class Input {
 
         if (tl) {
             let offset = event.originalEvent.offsetY
-            let diff1 = offset / (this.canvas.height/dpr-1) * 2
+            let diff1 = offset / (this.canvas.height / dpr - 1) * 2
             let diff2 = 2 - diff1
             let z = diff / (this.range[1] - this.range[0])
             //rezoom_range(z, diff_x, diff_y)
@@ -329,12 +336,12 @@ export default class Input {
             })
         }
         // TODO: fix doulbe updates (only on120hz macbook)
-        /*if (!updated)*/ this.changeRange()
+        /*if (!updated)*/
+        this.changeRange()
 
     }
 
     mousedrag(x, y) {
-
         if (this.meta.scrollLock) return
 
         let dt = this.drug.t * (this.drug.x - x) / this.layout.width

@@ -66,7 +66,7 @@ export default {
         let dist = Infinity
         let val = null
         let index = -1
-        for (var i = 0; i < ts.length; i++) {
+        for (var i = 0; i < ts?.length; i++) {
             var ti = ts[i][0]
             if (Math.abs(ti - t) < dist) {
                 dist = Math.abs(ti - t)

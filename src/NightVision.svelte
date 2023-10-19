@@ -25,7 +25,7 @@ export let height = 420
 export let colors = {} // TODO: default colors
 
 // Enable toolbar or not
-export let toolbar = false
+export let toolbar = true
 
 // User-defined scripts (overlays & studies)
 export let scripts = []
@@ -55,16 +55,18 @@ export let timezone = 0
 export let data = {}
 export let autoResize = false
 
+
 $:configMerge = Object.assign(Const.ChartConfig, config)
-$:offset = toolbar ? config.TOOLBAR : 0
+$:offset = toolbar ? Const.ChartConfig.TOOLBAR : 0
 $:colorsUser = Object.assign(Const.COLORS, colors)
 $:props = {
     showLogo,
     id,
     width: width - offset,
+    offset: offset,
     height,
     colors: colorsUser,
-    //toolbar,
+    toolbar,
     scripts,
     config: configMerge,
     //legendButtons,

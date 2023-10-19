@@ -16,6 +16,7 @@ import Context from '../stuff/context.js'
 import Pane from './Pane.svelte'
 import Botbar from './Botbar.svelte'
 import NoDataStub from './NoDataStub.svelte'
+import Toolbar from "./Toolbar.svelte";
 
 export let props = {}
 
@@ -151,7 +152,6 @@ function update(opt = {}, emit = true) {
 // TODO: we can update only panes with
 // overlay changes. But it requires more work
 function fullUpdate(opt = {}) {
-
     let prevIbMode = scan.ibMode
     interval = scan.detectInterval()
     timeFrame = scan.getTimeframe()
@@ -185,6 +185,8 @@ function rangeUpdate($range) {
 {#key chartRR} <!-- Full chart re-render -->
 <div class="nvjs-chart" >
     {#if layout && layout.main}
+        <Toolbar {props} {layout} side='left'/>
+
         {#each hub.panes() as pane, i}
     	<Pane id={i}
             layout={layout.grids[i]}

@@ -1,15 +1,32 @@
 // Navy ~ 0.1-lite
 // <ds>Time & value measurment tool [Shift+Click]</ds>
 
-[OVERLAY name=RangeTool, ctx=Canvas, verion=1.0.1, author=GPT4]
+[OVERLAY name = RangeTool, ctx = Canvas, verion = 1.0.1, author = GPT4]
 
-let pin1 = null 
-let pin2 = null 
-let shift = false
-let state = 'idle'
+let pin1 = null;
+let pin2 = null;
+let shift = false;
+let state = 'idle';
 
-draw(ctx) {
-    const layout = $core.layout 
+prop('shiftMode', {type: 'boolean', def: false});
+prop('initYPos', {type: 'number', def: undefined});
+
+function init() {
+    if ($props.shiftMode && $props.initYPos) {
+        setTimeout(() => {
+            pin1 = {
+                t: $core.cursor.time,
+                v: $core.layout.y2value($props.initYPos)
+            }
+            pin2 = {...pin1};
+            state = 'drawing';
+            $events.emitSpec('chart', 'update-layout');
+        })
+    }
+}
+
+function draw(ctx) {
+    const layout = $core.layout
 
     if (pin1 && pin2) {
         const x1 = layout.time2x(pin1.t) // time to x coordinate
@@ -17,7 +34,7 @@ draw(ctx) {
         const y1 = layout.value2y(pin1.v) // value to y coordinate
         const y2 = layout.value2y(pin2.v) // value to y coordinate
 
-         // change fill color based on percentage
+        // change fill color based on percentage
         let color = percent() >= 0 ? '#3355ff' : '#ff3333';
         ctx.fillStyle = color + '33';
         ctx.fillRect(x1, y1, x2 - x1, y2 - y1)
@@ -25,15 +42,15 @@ draw(ctx) {
         // draw arrows in the middle of rectangle
         let midX = (x1 + x2) / 2;
         let midY = (y1 + y2) / 2;
-        $lib.drawArrow(ctx, midX, y1, midX, y2, color, Math.abs(y2 - y1) > 42); 
-        $lib.drawArrow(ctx, x1, midY, x2, midY, color, Math.abs(x2 - x1) > 42);  
+        $lib.drawArrow(ctx, midX, y1, midX, y2, color, Math.abs(y2 - y1) > 42);
+        $lib.drawArrow(ctx, x1, midY, x2, midY, color, Math.abs(x2 - x1) > 42);
 
         // draw rounded rectangle with text
         const text1 = `${deltaValue().toFixed(2)} (${percent().toFixed(2)}%)`;
         const text2 = `${bars()} bars, ${timeText()}`;
         const text = `${text1}\n${text2}`;
         const textWidth = ctx.measureText(text).width;
-        
+
         const padding = 10;
         const mainRectCenterX = (x1 + x2) / 2; // calculate center of the main rectangle
         const roundRectX = mainRectCenterX - textWidth / 2 - padding; // center the text rectangle relative to the main rectangle
@@ -51,14 +68,14 @@ draw(ctx) {
         ctx.textBaseline = 'middle';
         ctx.fillText(text1, roundRectX + roundRectWidth / 2, roundRectY + roundRectHeight / 4);
         ctx.fillText(text2, roundRectX + roundRectWidth / 2, roundRectY + 3 * roundRectHeight / 4);
-      
+
     }
 }
 
 // Calculate the percentage of the are between pins v-values
 // assuming that pin2 is above pin1 equals positive value
 // and negative otherwise
-percent() {
+function percent() {
     if (pin1 && pin2) {
         let delta = 100 * (pin2.v - pin1.v)
         if (delta > 0) {
@@ -73,7 +90,7 @@ percent() {
 // Calculate delta time between pins t-values
 // assuming that pin2 on the right of pin1 equals positive value
 // and negative otherwise
-deltaTime() {
+function deltaTime() {
     if (pin1 && pin2) {
         return pin2.t - pin1.t
     }
@@ -83,7 +100,7 @@ deltaTime() {
 // Calculate delta value between pins v-values
 // assuming that pin2 is above pin1 equals positive value
 // and negative otherwise
-deltaValue() {
+function deltaValue() {
     if (pin1 && pin2) {
         return pin2.v - pin1.v
     }
@@ -91,7 +108,7 @@ deltaValue() {
 }
 
 // Delta time in bars
-bars() {
+function bars() {
     let data = $core.hub.mainOv.dataSubset
     if (pin1 && pin2) {
         const layout = $core.layout
@@ -105,7 +122,7 @@ bars() {
 }
 
 // Delta time in text format
-timeText() {
+function timeText() {
     let deltaTimeMs = deltaTime();  // returns delta time in milliseconds
     let timeFrameMs = $core.props.timeFrame;  // returns current chart timeframe in milliseconds
 
@@ -131,42 +148,42 @@ timeText() {
 }
 
 
-
-keydown(event) {
+function keydown(event) {
     if (event.key === 'Shift') {
         shift = true
     }
 }
 
-keyup(event) {
+function keyup(event) {
     if (event.key === 'Shift') {
         shift = false
     }
 }
 
-mousedown(event) {
-    const layout = $core.layout 
-    if (state === 'idle' && shift) {
+function mousedown(event) {
+    const layout = $core.layout
+    if (state === 'idle' || shift) {
         // Create the first pin 
         pin1 = {
             t: $core.cursor.time,
             v: layout.y2value(event.layerY)
         }
-        pin2 = { ...pin1 }
+        pin2 = {...pin1}
         state = 'drawing'
     } else if (state === 'drawing') {
         state = 'finished'
+        setTimeout(() => $events.emit('drawing-mode-off', {}))
     } else if (state === 'finished') {
         state = 'idle'
-        pin1 = null 
-        pin2 = null 
+        pin1 = null
+        pin2 = null
     }
     $events.emitSpec('chart', 'update-layout')
 }
 
-mousemove(event) {
+function mousemove(event) {
     if (state === 'drawing') {
-        const layout = $core.layout 
+        const layout = $core.layout
         // Create the second pin 
         pin2 = {
             t: $core.cursor.time,
@@ -176,4 +193,6 @@ mousemove(event) {
 }
 
 // Disable legend by returning null
-legend() => null
+function legend() {
+    return void 0;
+}

@@ -48,7 +48,7 @@ $:style = `
     width: ${layout.width}px;
     height: ${layout.height}px;
     background: ${props.colors.back};
-    margin-left: ${layout.sbMax[0]}px;
+    margin-left: ${layout.sbMax[0] + props.offset}px;
 `
 
 onMount(() => {
@@ -100,6 +100,8 @@ function destroyLayers() {
     }
 }
 
+const initedOverlays = [];
+
 // Take data + scripts and form new layers
 function makeLayers() {
 
@@ -128,8 +130,11 @@ function makeLayers() {
         meta.exctractFrom(l.overlay)
         layers.push(l)
 
-        l.overlay.init()
-
+        l.overlay.init();
+        // if (!initedOverlays.includes(l.id)) {
+        //     l.overlay.init();
+        // }
+        // initedOverlays.push(l.id);
     }
 
     // TODO: make crosshair customizable

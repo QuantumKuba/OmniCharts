@@ -1,10 +1,12 @@
 <!-- App.svelte -->
 <script>
+import math from "./stuff/math.js";
+
 import.meta.hot
 import { NightVision } from './index.js'
 import { onMount } from 'svelte'
 import data from '../data/data-ohlcv-rsi.json?id=main'
-import data2 from '../data/data-area.json?id=main-2'
+// import data2 from '../data/data-area.json?id=main-2'
 import TestStack from '../tests/testStack.js'
 
 
@@ -18,6 +20,7 @@ import mainOverlay from '../tests/data-sync/mainOverlay.js'
 import ovSettings from '../tests/data-sync/ovSettings.js'
 import ovPropsChange from '../tests/data-sync/ovPropsChange.js'
 import ovDataChange from '../tests/data-sync/ovDataChange.js'
+import Math2 from './stuff/math.js';
 
 // More tests
 import realTime from '../tests/real-time/realTime.js'
@@ -50,10 +53,22 @@ let chart = null
 
 onMount(() => {
     chart = new NightVision('chart-container', {
-        data: data2,
-        //autoResize: true,
-        //indexBased: true
+        data: data,
+        autoResize: true,
+        indexBased: true,
+        scrollLock: true,
+        config: {
+            SCROLL_WHEEL: 'pass',
+            scrollLock: true,
+            meta: {
+                scrollLock: true
+            }
+        },
+        meta: {
+            scrollLock: true
+        }
     })
+    // chart.meta.scrollLock = true;
     //chart.data = data2
     window.chart = chart
     window.stack = stack
