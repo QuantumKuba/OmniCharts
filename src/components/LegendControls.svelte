@@ -76,3 +76,8 @@
         background-color: rgba(150, 150, 150, .4);
     }
 </style>
+<!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
+<!--<div class="nvjs-eye" style={eyeStyle}-->
+<!--    on:click|stopPropagation={onDisplayClick}>-->
+<!--</div>-->

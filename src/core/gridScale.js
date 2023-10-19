@@ -9,14 +9,17 @@ import Utils from '../stuff/utils.js'
 import math from '../stuff/math.js'
 import logScale from './logScale.js'
 import MetaHub from '../core/metaHub.js'
+import ScriptHub from '../core/scripts.js'
 
 const { $SCALES } = Const
+const MAX_INT = Number.MAX_SAFE_INTEGER
 
 export default function Scale(id, src, specs) {
 
     let { hub, props, settings, height } = specs
     let { ctx } = props
     let meta = MetaHub.instance(props.id)
+    let prefabs = ScriptHub.instance(props.id).prefabs
     let self = {}
     let yt = (meta.yTransforms[src.gridId] || [])[id]
     let gridId = src.gridId
@@ -62,17 +65,26 @@ export default function Scale(id, src, specs) {
         self.sb = Math.max(Math.floor(self.sb), props.config.SBMIN)
         self.sb = Math.min(self.sb, props.config.SBMAX)
 
+        // Prevent sb calculation before meta data
+        // extracted  from the scripts
+        // if (!meta.ready) self.sb = props.config.SBMIN
     }
 
     // Calc vertical value range
     function calc$Range() {
-
         // Need to find minimum & maximum of selected
         // set of overlays (on the same scale)
         var hi = -Infinity, lo = Infinity
         for (var ov of ovs) {
             if (ov.settings.display === false) continue
             let yfn = (meta.yRangeFns[gridId] || [])[ov.id]
+            let yfnStatic = prefabs[ov.type].static.yRange 
+            if (yfnStatic) {
+                yfn = { 
+                    exec: yfnStatic,
+                    preCalc: yfnStatic.length > 1 // Do we need h & l
+                }
+            }
             let data = ov.dataSubset
             // Intermediate hi & lo
             var h = -Infinity, l = Infinity
@@ -92,9 +104,9 @@ export default function Scale(id, src, specs) {
             if (yfn) {
                 // Check if result is 'null', then this overlay
                 // should not affect the range at all
-                var yfnResult = yfn.exec(h, l)
+                var yfnResult = yfn.exec(data, h, l)
                 if (yfnResult) {
-                    var [h, l, exp] = yfn.exec(h, l)
+                    var [h, l, exp] = yfnResult
                 } else {
                     var [h, l] = [hi, lo]
                 }
@@ -140,8 +152,8 @@ export default function Scale(id, src, specs) {
 
         // Sample N random elements from the current subset
         let f = meta.getPreSampler(gridId, ov.id)
+        f = f || prefabs[ov.type].static.preSampler 
         f = f || Utils.defaultPreSampler
-
         for (var i = 0; i < SAMPLE; i++) {
             // Random element n
             let n = Math.floor(Math.random() * ov.dataSubset.length)
@@ -255,9 +267,7 @@ export default function Scale(id, src, specs) {
         self.$_mult = dollarMult()
         self.ys = []
 
-        if (!data.length) return
-
-        let v = Math.abs(data[data.length - 1][1] || 1)
+        let v = (self.$hi + self.$lo) / 2 // Use mid point
         let y1 = searchStartPos(v)
         let y2 = searchStartNeg(-v)
         let yp = -Infinity // Previous y value

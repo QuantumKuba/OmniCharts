@@ -43,9 +43,11 @@ let sbUpdId = `sb-${id}-${side}`
 let sbId = `${props.id}-sb-${id}-${side}`
 let canvasId = `${props.id}-sb-canvas-${id}-${side}`
 let showSwitch = false
+let showPanel = true
 
 // EVENT INTERFACE
 events.on(`${sbUpdId}:update-sb`, update)
+events.on(`${sbUpdId}:show-sb-panel`, f => showPanel = f)
 
 $:sbStyle = `
     left: ${S * (layout.width + layout.sbMax[0] + props.offset)}px;
@@ -172,13 +174,18 @@ function update($layout = layout) {
         return sb.error(props, layout, side, ctx)
     }
 
-    sb.body(props, layout, scale, side, ctx)
+    // Draw only when data extracted from the srcipts
+    //if (meta.ready) {
+        sb.body(props, layout, scale, side, ctx)
+    //} else {
+    //    sb.border(props, layout, side, ctx)
+    //}
 
     ovDrawCalls()
 
     if (id) sb.upperBorder(props, layout, ctx)
 
-    if (props.cursor.y && props.cursor.scales) {
+    if (props.cursor.y && props.cursor.scales && showPanel) {
         if (props.cursor.gridId === layout.id) {
             sb.panel(props, layout, scale, side, ctx)
         }
@@ -240,6 +247,7 @@ function calcRange(diff1 = 1, diff2 = 1) {
     return range
 }
 
+// TODO: log scale work with distortions when auto is disabled
 function rezoomRange(delta, diff1, diff2) {
     let yTransform = getYtransform()
     if (!yTransform || yTransform.auto) return

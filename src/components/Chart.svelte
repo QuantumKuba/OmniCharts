@@ -92,7 +92,6 @@ onDestroy(() => {
 
 function onCursorChanged($cursor, emit = true) {
     // Emit a global event (hook)
-    if (emit) events.emit('$cursor-update', $cursor)
     if ($cursor.mode) cursor.mode = $cursor.mode
     if (cursor.mode !== 'explore') {
         cursor.xSync(hub, layout, chartProps, $cursor)
@@ -101,6 +100,9 @@ function onCursorChanged($cursor, emit = true) {
             setTimeout(() => update())
         }
     }
+    if (emit) events.emit('$cursor-update', 
+        Utils.makeCursorEvent($cursor, cursor, layout)
+    )
     //if (cursor.locked) return // filter double updates (*)
     update()
 }
@@ -139,7 +141,7 @@ function update(opt = {}, emit = true) {
     // If we changed UUIDs of but don't want to trigger
     // the full update, we need to set updateHash:true
     if (opt.updateHash) scan.updatePanesHash()
-    if (scan.panesChanged()) return fullUpdate()
+    if (scan.panesChanged()) return fullUpdate(opt)
     cursor = cursor // Trigger Svelte update
     layout = new Layout(chartProps, hub, meta)
     events.emit('update-pane', layout) // Update all panes
@@ -180,7 +182,6 @@ function rangeUpdate($range) {
 
 </script>
 <style>
-.nvjs-chart {}
 </style>
 {#key chartRR} <!-- Full chart re-render -->
 <div class="nvjs-chart" >

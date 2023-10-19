@@ -140,8 +140,8 @@ function makeLayers() {
     // TODO: make crosshair customizable
     // TODO: check order if overlay list is changed
     // TODO: switch Grid/X from the pane settings
-    layers.push(new Crosshair(i++))
-    layers.push(new Grid(i++))
+    layers.push(new Crosshair(i++, props.id))
+    layers.push(new Grid(i++, props.id))
     layers.push(new Trackers(i++, props, id))
     layers.sort((l1, l2) => l1.zIndex - l2.zIndex)
 
@@ -185,6 +185,10 @@ function update($layout = layout) {
         l.env.update(l.ovSrc, layout, props)
         l.update()
     }
+    // Prevent drawing before meta data extracted
+    // from the scripts
+    // if (!meta.ready) return
+    // Now draw
     for (var rr of renderers) {
         events.emitSpec(`rr-${id}-${rr.id}`,
             'update-rr', layout)
@@ -216,7 +220,6 @@ function onTask(event) {
 
 </script>
 <style>
-.nvjs-grid {}
 </style>
 <div class="nvjs-grid" {style}>
     {#each renderers as rr, i}

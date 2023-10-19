@@ -1,5 +1,6 @@
 // Crosshair layer. Extends Layer class,
 // TODO: can be replaced by overlay script
+// TODO: generalize show/hide to any layer
 
 import Layer from '../layer.js'
 import Const from '../../stuff/constants.js'
@@ -9,12 +10,16 @@ const HPX = Const.HPX
 
 export default class Crosshair extends Layer {
 
-    constructor(id) {
-        super(id, '__$Crosshair__')
+    constructor(id, nvId) {
+        super(id, '__$Crosshair__', nvId)
 
-        this.id = id;
-        this.zIndex = 1000000;
+        this.events = Events.instance(this.nvId)
+        this.events.on(`crosshair:show-crosshair`, this.onShowHide.bind(this))
+
+        this.id = id
+        this.zIndex = 1000000
         this.ctxType = 'Canvas';
+        this.show = true;
         this.signalLevelActionHover = false;
         this.actionSize = 22;
 
@@ -66,7 +71,7 @@ export default class Crosshair extends Layer {
 
         const cursor = this.props.cursor
 
-        if (!cursor.visible) return
+        if (!cursor.visible || !this.show) return
 
         //if (!this.visible && cursor.mode === 'explore') return
 
@@ -128,7 +133,12 @@ export default class Crosshair extends Layer {
         if (this.props) this.props.cursor = update
     }
 
+    onShowHide(flag) {
+        this.show = flag
+    }
+
     destroy() {
+        this.events.off('crosshair')
     }
 
     actionButtonHovered = (mouse) => {

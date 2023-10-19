@@ -75,7 +75,7 @@ function setup() {
     [canvas, ctx] = dpr.setup(
         canvasId, layout.width, layout.height)
 
-    update()
+    //update()
 
 }
 

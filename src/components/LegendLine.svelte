@@ -150,7 +150,7 @@
     }
 
     function updateBoundaries() {
-        boundary = ref.getBoundingClientRect()
+        if (!ref) returnboundary = ref.getBoundingClientRect()
     }
 </script>
 <style>
@@ -172,9 +172,6 @@
         margin-left: -5px;
         margin-right: 2px;
         opacity: 0.85;
-    }
-
-    .nvjs-ll-name {
     }
 
     .nvjs-ll-data {
@@ -217,7 +214,8 @@
         filter: none;
     }*/
 </style>
-<!-- svelte-ignore a11y-click-events-have-key-events -->
+{#if !legendFns.noLegend && ov.settings.showLegend !== false}
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="nvjs-legend-line" {style}
      on:mousemove={onMouseMove}
      on:mouseleave={onMouseLeave}
@@ -228,7 +226,7 @@
     {/if}
     {#if !ov.drawingTool}
             <span class="nvjs-ll-name" bind:this={nRef}>
-            {name}
+            {@html name}
                 {#if ov.main}
             <span class="king-icon" style={kingStyle}>
             </span>
@@ -237,7 +235,9 @@
     {/if}
     {#if display && !hover}
         <span class="nvjs-ll-data" style={dataStyle}>
-            {#if !legend && !legendHtml}
+            {#if ov.settings.legendHtml}
+            {@html ov.settings.legendHtml}
+        {:else if !legend && !legendHtml}
                 {#each data as v, i}
                     {#if i > 0} <!-- filter out time -->
                         {#if v != null}

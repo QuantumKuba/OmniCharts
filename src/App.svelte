@@ -7,6 +7,7 @@ import { NightVision } from './index.js'
 import { onMount } from 'svelte'
 import data from '../data/data-ohlcv-rsi.json?id=main'
 // import data2 from '../data/data-area.json?id=main-2'
+import data3 from '../data/data-aapl.json?id=main-3'
 import TestStack from '../tests/testStack.js'
 
 
@@ -34,6 +35,8 @@ import indicators from '../tests/indicators/indicators.js'
 import rangeTool from '../tests/tools/rangeTool.js'
 import watchPropTest from '../tests/navy/watchPropTest.js'
 
+// More tests
+import logScaleTest from '../tests/scales/logScale.js'
 
 /*
 TODO: data-api interface:
@@ -106,6 +109,10 @@ onMount(() => {
 
     watchPropTest(stack, chart)
 
+    stack.setGroup('scales-test')
+
+    logScaleTest(stack, chart)
+
     //  Type in the console: stack.execAll()
     //  or: stack.exec('<group>')
 
@@ -113,7 +120,6 @@ onMount(() => {
 
 </script>
 <style>
-.app {}
 #chart-container {
     position: absolute;
     width: 100%;

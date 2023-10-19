@@ -140,6 +140,8 @@ class ScriptEngine {
             return
         }
 
+        if (!this.shared) return // Not initialized yet
+
         let mfs1 = this.make_mods_hooks('pre_step')
         let mfs2 = this.make_mods_hooks('post_step')
 
@@ -405,8 +407,22 @@ class ScriptEngine {
         return self.paneStruct.map(x => ({
             id: x.id,
             uuid: x.uuid,
-            overlays: x.overlays || []
+            overlays: this.override_overlays(x.overlays || [])
         }))
+    }
+
+    // Override overlay fields with 'script.overlay'
+    override_overlays(ovs) {
+        //let out = []
+        for (var ov of ovs) {
+            // Find the producer script by uuid (prod) 
+            let s = this.map[ov.prod]
+            if (!s) continue
+            if (s.overlay) {
+                ov = u.overrideOverlay(ov, s.overlay)
+            }
+        }
+        return ovs
     }
 
     format_update() {

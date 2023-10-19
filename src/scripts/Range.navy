@@ -1,4 +1,4 @@
-// Navy ~ 0.1-lite
+// Navy ~ 0.2-lite
 
 // <ds>Ranging indicator, e.g. RSI</ds>
 // Format: [<timestamp>, <value>]
@@ -47,7 +47,7 @@ draw(ctx) {
     ctx.stroke()
 }
 
-yRange(hi, lo) => [
+yRange(data, hi, lo) => [
     Math.max(hi, $props.upperBand),
     Math.min(lo, $props.lowerBand)
 ]
