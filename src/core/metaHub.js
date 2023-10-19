@@ -121,7 +121,6 @@ class MetaHub {
     }
 
     toolSelected = (event) => {
-        console.log(this.drawingMode);
         if (this.drawingMode) {
             return void 0;
         }

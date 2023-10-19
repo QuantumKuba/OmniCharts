@@ -215,16 +215,16 @@
     }*/
 </style>
 {#if !legendFns.noLegend && ov.settings.showLegend !== false}
-<!-- svelte-ignore a11y-no-static-element-interactions -->
-<div class="nvjs-legend-line" {style}
-     on:mousemove={onMouseMove}
-     on:mouseleave={onMouseLeave}
-     on:click={onClick}
-     bind:this={ref}>
-    {#if ov.main && props.showLogo}
-        <div class="nvjs-logo" style={logoStyle}></div>
-    {/if}
-    {#if !ov.drawingTool}
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div class="nvjs-legend-line" {style}
+         on:mousemove={onMouseMove}
+         on:mouseleave={onMouseLeave}
+         on:click={onClick}
+         bind:this={ref}>
+        {#if ov.main && props.showLogo}
+            <div class="nvjs-logo" style={logoStyle}></div>
+        {/if}
+        {#if !ov.drawingTool}
             <span class="nvjs-ll-name" bind:this={nRef}>
             {@html name}
                 {#if ov.main}
@@ -232,8 +232,8 @@
             </span>
             {/if}
         </span>
-    {/if}
-    {#if display && !hover}
+        {/if}
+        {#if display && !hover}
         <span class="nvjs-ll-data" style={dataStyle}>
             {#if ov.settings.legendHtml}
             {@html ov.settings.legendHtml}
@@ -260,17 +260,18 @@
                 {/each}
             {/if}
         </span>
-    {/if}
-    {#if !display && !hover}
-        <div class="legend-controls-container">
-            <div class="nvjs-action-icon-wrapper">
-                <div class="nvjs-action-icon" style={eyeStyle}></div>
+        {/if}
+        {#if !display && !hover}
+            <div class="legend-controls-container">
+                <div class="nvjs-action-icon-wrapper">
+                    <div class="nvjs-action-icon" style={eyeStyle}></div>
+                </div>
             </div>
-        </div>
-    {/if}
-    {#if hover}
-        <LegendControls bind:this={ctrlRef}
-                        {gridId} {ov} {props}
-                        height={boundary.height}/>
-    {/if}
-</div>
+        {/if}
+        {#if hover}
+            <LegendControls bind:this={ctrlRef}
+                            {gridId} {ov} {props}
+                            height={boundary.height}/>
+        {/if}
+    </div>
+{/if}
