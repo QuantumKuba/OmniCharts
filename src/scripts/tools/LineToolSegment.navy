@@ -25,6 +25,9 @@ let collisions = [];
 let drag = {t: undefined, v: undefined};
 
 prop('pins', {type: 'array', def: undefined});
+prop('color', {type: 'string', def: '#dc9800'});
+prop('lineWidth', {type: 'string', def: 2});
+prop('lineStyle', {type: 'string', def: 0});
 
 function init(ctx) {
     if (!$props.pins) {
@@ -49,13 +52,13 @@ function draw(ctx) {
         y2 = layout.value2y(pin2.v) // value to y coordinate
 
         // change fill color based on percentage
-        let color = '#dc9800';
+        let color = $props.color;
         ctx.strokeStyle = color;
         ctx.fillStyle = color;
 
         ctx.beginPath();
-        ctx.setLineDash([0, 0]);
-        ctx.lineWidth = 2;
+        ctx.setLineDash([$props.lineStyle, $props.lineStyle]);
+        ctx.lineWidth = $props.lineWidth;
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
@@ -63,7 +66,7 @@ function draw(ctx) {
 
         collisions.push(make([x1, y1], [x2, y2]).f);
 
-        if (showPins || pin1Active || pin2Active || $core.meta.selectedTool === $core.id) {
+        if (showPins || pin1Active || pin2Active || $core.meta.selectedTool === $core.id || state === 'drawing') {
             drawPins(ctx, x1, y1, x2, y2);
         }
     }
@@ -75,6 +78,7 @@ function drawPins(ctx, x1, y1, x2, y2) {
 
     // First Pin
     ctx.beginPath();
+    ctx.setLineDash([0, 0]);
     ctx.strokeStyle = '#dc9800';
     ctx.shadowColor = "#dc9800";
     ctx.fillStyle = $core.props.colors.back;
@@ -104,6 +108,10 @@ function drawPins(ctx, x1, y1, x2, y2) {
 
 function mousedown(event) {
     const layout = $core.layout;
+
+    if (event.which === 3) {
+        return void 0;
+    }
 
     if (state === 'drawing') {
         state = 'finished';

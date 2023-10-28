@@ -89,7 +89,6 @@ function GridMaker(id, specs, mainGrid = null) {
     }
 
     function calcPositions() {
-
         if (data.length < 2) return
 
         let dt = range[1] - range[0]
@@ -191,7 +190,6 @@ function GridMaker(id, specs, mainGrid = null) {
             self.startx = mainGrid.startx
             self.spacex = mainGrid.spacex
             self.xs = mainGrid.xs
-
         }
     }
 

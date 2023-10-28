@@ -1,4 +1,3 @@
-
 // Vanilla JS interface
 
 import NightVisionComp from './NightVision.svelte'
@@ -15,6 +14,9 @@ import resizeTracker from './stuff/resizeTracker.js'
 class NightVision {
 
     constructor(target, props = {}) {
+        if (target) {
+            return void 0;
+        }
 
         this._data = props.data || {}
         this._scripts = props.scripts || []
@@ -35,6 +37,10 @@ class NightVision {
         this.scriptHub.init(this._scripts)
 
         this.root = document.getElementById(target)
+        if (!this.root) {
+            return void 0;
+        }
+
         this.comp = new NightVisionComp({
             target: this.root,
             props: props
@@ -55,6 +61,7 @@ class NightVision {
     get id() {
         return this.comp.id
     }
+
     set id(val) {
         this.comp.$set({id: val})
     }
@@ -63,6 +70,7 @@ class NightVision {
     get width() {
         return this.comp.width
     }
+
     set width(val) {
         this.comp.$set({width: val})
         setTimeout(() => this.update())
@@ -72,6 +80,7 @@ class NightVision {
     get height() {
         return this.comp.height
     }
+
     set height(val) {
         this.comp.$set({height: val})
         setTimeout(() => this.update())
@@ -82,6 +91,7 @@ class NightVision {
     get colors() {
         return this.comp.colors
     }
+
     set colors(val) {
         this.comp.$set({colors: val})
     }
@@ -90,6 +100,7 @@ class NightVision {
     get showLogo() {
         return this.comp.showLogo
     }
+
     set showLogo(val) {
         this.comp.$set({id: val})
     }
@@ -99,6 +110,7 @@ class NightVision {
     get scripts() {
         return this._scripts
     }
+
     set scripts(val) {
         this._scripts = val
         this.scriptHub.init(this._scripts)
@@ -109,6 +121,7 @@ class NightVision {
     get data() {
         return this._data
     }
+
     set data(val) {
         this._data = val
         this.update('full')
@@ -118,6 +131,7 @@ class NightVision {
     get config() {
         return this.comp.config
     }
+
     set config(val) {
         this.comp.$set({config: val})
     }
@@ -126,6 +140,7 @@ class NightVision {
     get indexBased() {
         return this.comp.indexBased
     }
+
     set indexBased(val) {
         this.comp.$set({indexBased: val})
     }
@@ -134,6 +149,7 @@ class NightVision {
     get timezone() {
         return this.comp.timezone
     }
+
     set timezone(val) {
         this.comp.$set({timezone: val})
         setTimeout(() => this.update())
@@ -177,21 +193,21 @@ class NightVision {
     update(type = 'layout', opt = {}) {
         var [type, id] = type.split('-')
         const ev = this.events
-        switch(type) {
+        switch (type) {
             case 'layout':
                 ev.emitSpec('chart', 'update-layout', opt)
-            break
+                break
             case 'data':
                 // TODO: update cursor if it's ahead of the last candle
                 // (needs to track the new last)
                 this.hub.updateRange(this.range)
                 this.meta.calcOhlcMap()
                 ev.emitSpec('chart', 'update-layout', opt)
-            break
+                break
             case 'full':
                 this.hub.init(this._data)
                 ev.emitSpec('chart', 'full-update', opt)
-            break
+                break
             case 'grid':
                 if (id === undefined) {
                     ev.emit('remake-grid')
@@ -199,7 +215,7 @@ class NightVision {
                     let gridId = `grid-${id}`
                     ev.emitSpec(gridId, 'remake-grid', opt)
                 }
-            break
+                break
             case 'legend':
                 if (id === undefined) {
                     ev.emit('update-legend')
@@ -207,7 +223,7 @@ class NightVision {
                     let gridId = `legend-${id}`
                     ev.emitSpec(gridId, 'update-legend', opt)
                 }
-            break
+                break
         }
     }
 
@@ -240,7 +256,7 @@ class NightVision {
     // Should call this to clean-up memory / events
     destroy() {
         this.comp.$destroy()
-    } 
+    }
 }
 
 export {

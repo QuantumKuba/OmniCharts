@@ -29,6 +29,7 @@ $:bbStyle = `
     background: ${props.colors.back};
     width: ${(layout.botbar || {}).width}px;
     height: ${(layout.botbar || {}).height}px;
+    margin-left: ${props.offset}px
 `
 
 let canvas // Canvas ref

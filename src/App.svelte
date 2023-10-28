@@ -63,6 +63,7 @@ onMount(() => {
         config: {
             SCROLL_WHEEL: 'pass',
             scrollLock: true,
+            SBMAX: 500,
             meta: {
                 scrollLock: true
             }

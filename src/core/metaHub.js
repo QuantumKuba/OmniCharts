@@ -65,15 +65,17 @@ class MetaHub {
 
     // User tapped grid (& deselected all overlays)
     onGridMousedown(event) {
-        this.objectSelected({id: undefined});
+        this.events.emit('object-selected', {id: undefined});
 
         if (event[1].shiftKey) {
+            this.removeRangeTool();
             this.events.emit('tool-selected', {type: 'RangeTool', props: {shiftMode: true, initYPos: event[1].layerY}});
             return void 0;
         }
 
-        if (event[1].which === 3) {
+        if (event[1].which === 3 && !this.drawingMode) {
             this.events.emit('tool-selected', {type: 'LineToolHorizontalRay'});
+            return void 0;
         }
 
         if (!this.drawingMode && this.tool === 'Cursor') {
@@ -99,7 +101,9 @@ class MetaHub {
         this.selectedTool = undefined;
         this.tool = undefined;
         this.drawingModeOff();
+        this.events.emit('object-selected', {id: undefined});
         this.events.emitSpec('chart', 'update-layout');
+        this.events.emit('commit-tool-changes');
     }
 
     removeTool = () => {
@@ -108,7 +112,9 @@ class MetaHub {
         this.tool = undefined;
         this.drawingModeOff();
 
+        this.events.emit('object-selected', {id: undefined});
         this.events.emitSpec('chart', 'update-layout');
+        this.events.emit('commit-tool-changes');
     }
 
     changeToolSettings = (event) => {
@@ -123,6 +129,10 @@ class MetaHub {
     toolSelected = (event) => {
         if (this.drawingMode) {
             return void 0;
+        }
+
+        if (event.type === 'RangeTool') {
+            this.removeRangeTool();
         }
 
         this.tool = event.type;
@@ -147,7 +157,10 @@ class MetaHub {
     updateToolSettings = ({id, pins}) => {
         const toolIdx = this.hub.data.panes[0].overlays.findIndex((overlay) => overlay.id === id);
         if (toolIdx !== -1) {
-            this.hub.data.panes[0].overlays[toolIdx].props = {pins};
+            this.hub.data.panes[0].overlays[toolIdx].props = {
+                ...this.hub.data.panes[0].overlays[toolIdx].props,
+                pins
+            };
         }
 
         this.events.emit('commit-tool-changes');
@@ -158,13 +171,18 @@ class MetaHub {
         if (drawingOverlayIdx !== -1) {
             this.hub.data.panes[0].overlays.splice(drawingOverlayIdx, 1);
         }
+        this.events.emit('commit-tool-changes');
     }
 
     removeRangeTool = () => {
-        const drawingOverlayIdx = this.hub.data.panes[0].overlays.findIndex((overlay) => overlay.type === 'RangeTool');
-        if (drawingOverlayIdx !== -1) {
-            this.hub.data.panes[0].overlays.splice(drawingOverlayIdx, 1);
+        const drawingOverlayIndexes = this.hub.data.panes[0].overlays.map((overlay, idx) => overlay.type === 'RangeTool' ? idx : undefined).filter(Boolean);
+        if (drawingOverlayIndexes.length) {
+            this.hub.data.panes[0].overlays = this.hub.data.panes[0].overlays.filter((overlay, idx) => !drawingOverlayIndexes.includes(idx));
         }
+
+        this.selectedTool = undefined;
+        this.tool = undefined;
+        this.drawingModeOff();
     }
 
     // Extract meta functions from overlay

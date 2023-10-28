@@ -54,6 +54,7 @@ const COLORS = {
 }
 
 const ChartConfig = {
+    RIGHT_OFFSET: 100,
     SBMIN: 60,       // Minimal sidebar, px
     SBMAX: Infinity, // Max sidebar, px
     TOOLBAR: 57,     // Toolbar width, px
