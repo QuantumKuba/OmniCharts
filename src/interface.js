@@ -14,7 +14,7 @@ import resizeTracker from './stuff/resizeTracker.js'
 class NightVision {
 
     constructor(target, props = {}) {
-        if (target) {
+        if (!target) {
             return void 0;
         }
 
