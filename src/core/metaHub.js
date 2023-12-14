@@ -69,16 +69,23 @@ class MetaHub {
 
         if (event[1].shiftKey) {
             this.removeRangeTool();
-            this.events.emit('tool-selected', {type: 'RangeTool', props: {shiftMode: true, initYPos: event[1].layerY}});
+            this.events.emit('tool-selected', {type: 'RangeTool'});
+            this.tool = 'RangeTool';
+            this.drawingMode = false;
+            this.buildTool({shiftMode: true, initYPos: event[1].layerY});
             return void 0;
         }
 
         if (event[1].which === 3 && !this.drawingMode) {
             this.events.emit('tool-selected', {type: 'LineToolHorizontalRay'});
+            this.tool = 'LineToolHorizontalRay';
             return void 0;
         }
 
-        if (!this.drawingMode && this.tool === 'Cursor') {
+        if (this.tool && this.tool !== 'Cursor' && !this.drawingMode) {
+            this.drawingMode = true;
+            this.buildTool({initYPos: event[1].layerY});
+        } else {
             this.removeRangeTool();
         }
 
@@ -127,17 +134,11 @@ class MetaHub {
     }
 
     toolSelected = (event) => {
-        if (this.drawingMode) {
-            return void 0;
-        }
-
         if (event.type === 'RangeTool') {
             this.removeRangeTool();
         }
 
         this.tool = event.type;
-        this.drawingMode = event.type !== 'Cursor';
-        this.buildTool(event.props);
     }
 
     buildTool = (props = {}) => {
@@ -152,6 +153,7 @@ class MetaHub {
                 zIndex: 0
             }
         });
+        this.selectedTool = this.hub.data.panes[0].overlays[this.hub.data.panes[0].overlays.length - 1].id;
     }
 
     updateToolSettings = ({id, pins}) => {

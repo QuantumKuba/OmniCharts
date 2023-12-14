@@ -156,6 +156,7 @@ async function listeners() {
         })
 
         mc.on('doubletap', () => {
+            console.log(scale.scaleSpecs.id);
             events.emit('sidebar-transform', {
                 gridId: id,
                 scaleId: scale.scaleSpecs.id,

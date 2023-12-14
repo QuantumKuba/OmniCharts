@@ -1,0 +1,151 @@
+[OVERLAY name = Brush, ctx = Canvas, version = 1.0.0, author = YourName]
+
+let points = [];
+let drawing = false;
+let active = false;
+let hover = false;
+let drag = {t: undefined, v: undefined};
+
+prop('pins', {type: 'array', def: undefined});
+prop('initYPos', {type: 'number', def: undefined});
+prop('color', {type: 'string', def: '#dc9800'});
+prop('lineWidth', {type: 'number', def: 2});
+
+function init(ctx) {
+    if (!$props.pins) {
+        if ($props.initYPos) {
+            setTimeout(() => {
+                $events.emit('object-selected', {id: $core.id})
+            });
+
+            points = [{
+                x: $core.cursor.time,
+                y: $core.layout.y2value($props.initYPos)
+            }];
+            drawing = true;
+            active = true;
+        }
+    }
+}
+
+function draw(ctx) {
+    if (points.length < 2 && $props.pins?.length < 2) return;
+
+    const layout = $core.layout;
+
+    ctx.strokeStyle = $props.color;
+    ctx.lineWidth = $core.meta.selectedTool === $core.id || hover ? $props.lineWidth + 1 : $props.lineWidth;
+    ctx.shadowBlur = 2;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    const storedPins = $props.pins;
+    if (storedPins?.length >= 2 && (!active)) {
+        points = storedPins;
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(layout.time2x(points[0].x), layout.value2y(points[0].y));
+
+    for (let i = 1; i < points.length; i++) {
+        const x = layout.time2x(points[i].x);
+        const y = layout.value2y(points[i].y);
+        ctx.lineTo(x, y);
+    }
+
+    ctx.stroke();
+    ctx.closePath();
+}
+
+function mousedown(event) {
+    const layout = $core.layout;
+    const [mouseX, mouseY] = getMouseCoords(event);
+    active = isActive(mouseX, mouseY);
+
+    if (active) {
+        setTimeout(() => $events.emit('object-selected', {id: $core.id}));
+
+        drag = {
+            t: layout.x2time(event.layerX),
+            v: layout.y2value(event.layerY)
+        }
+    }
+
+    $core.meta.scrollLock = false;
+    $events.emitSpec('chart', 'update-layout');
+}
+
+function mouseup(event) {
+    if ($core.meta.selectedTool !== $core.id) {
+        return void 0;
+    }
+
+    if (active) {
+        $events.emit('drawing-mode-off', {});
+        $events.emit('change-tool-settings', {
+            pins: points,
+            id: $core.id
+        });
+        $props.pins = points;
+
+        active = false;
+        hover = false;
+        drawing = false;
+    }
+}
+
+function mousemove(event) {
+    const layout = $core.layout;
+    if (drawing) {
+        points.push({x: layout.x2time(event.layerX), y: layout.y2value(event.layerY)});
+        return void 0;
+    }
+
+    const [mouseX, mouseY] = getMouseCoords(event);
+    hover = isActive(mouseX, mouseY);
+
+    const dt = layout.x2time(event.layerX) - drag.t;
+    const dy = layout.y2value(event.layerY) - drag.v;
+
+    if ($core.meta.selectedTool === $core.id && active) {
+        $core.meta.scrollLock = true;
+
+        console.log(points);
+        points = points.map(({x, y}) => {
+            const newX = x + dt;
+            const newY = y + dy;
+            return {x: newX, y: newY};
+        });
+
+        drag.t = layout.x2time(event.layerX);
+        drag.v = layout.y2value(event.layerY);
+
+        $events.emitSpec('chart', 'update-layout');
+    }
+}
+
+let isActive = (mouseX, mouseY) => {
+    const tolerance = $props.lineWidth * 10;
+    const mouseTimestamp = roundTimestamp(parseInt($core.layout.x2time(mouseX))).getTime();
+    const mouseXPos = $core.layout.time2x(mouseTimestamp);
+
+    return points.some(({x, y}) => {
+        const x1 = $core.layout.time2x(roundTimestamp(new Date(x)).getTime());
+        const y1 = $core.layout.value2y(y);
+
+
+        const withinXRange = x1 === mouseXPos;
+        const withinYRange = Math.abs(y1 - mouseY) <= tolerance;
+
+        return withinXRange && withinYRange;
+    });
+}
+
+let getMouseCoords = (event) => {
+    return [event.layerX, event.layerY];
+}
+
+let roundTimestamp = (timestamp) => {
+    const coeff = 1000 * 60 * 60;
+    return new Date(Math.round(timestamp / coeff) * coeff)
+}

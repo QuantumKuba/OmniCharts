@@ -33632,28 +33632,33 @@
   "tools": [
     {
       "type": "Cursor",
-      "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAZAgMAAAC5h23wAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAxQTFRFAAAATU1NTU1NTU1NwlMHHwAAAAR0Uk5TAOvhxbpPrUkAAAAkSURBVHicY2BgYHBggAByabxg1WoGBq2pRCk9AKUbcND43AEAufYHlSuusE4AAAAASUVORK5CYII="
+      "icon": "<svg fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\" height=\"24\" viewBox=\"0 -960 960 960\" width=\"24\"><path d=\"M480-400q-33 0-56.5-23.5T400-480q0-33 23.5-56.5T480-560q33 0 56.5 23.5T560-480q0 33-23.5 56.5T480-400Zm-40-240v-200h80v200h-80Zm0 520v-200h80v200h-80Zm200-320v-80h200v80H640Zm-520 0v-80h200v80H120Z\"/></svg>\n"
+    },
+    {
+      "type": "Brush",
+      "label": "Brush",
+      "icon": "<svg fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\" height=\"24\" viewBox=\"0 -960 960 960\" width=\"24\"><path d=\"M247.693-147.694q-34.328 0-67.894-15.077-33.565-15.076-55.95-40.306 22.923-6.539 43.384-27.808 20.461-21.27 20.461-56.808 0-41.922 29.038-70.96 29.038-29.038 70.961-29.038 41.922 0 70.96 29.038 29.038 29.038 29.038 70.96 0 57.75-41.124 98.874-41.125 41.125-98.874 41.125Zm0-59.999q33 0 56.5-23.5t23.5-56.5q0-17-11.5-28.5t-28.5-11.5q-17 0-28.5 11.5t-11.5 28.5q0 23-5.5 42t-14.5 36q5 2 10 2h10Zm212.306-162.308L370.77-459.23l342.614-342.614q11-11 27.5-11.5t28.5 11.5l33.23 33.229q12 12 12 28t-12 28L459.999-370.001Zm-172.306 82.308Z\"/></svg>\n"
     },
     {
       "type": "LineToolSegment",
       "label": "Line",
       "group": "LineTool",
-      "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAZAgMAAAC5h23wAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAlQTFRFAAAATU1NJCQkCxcHIQAAAAN0Uk5TAP8SmutI5AAAACxJREFUeJxjYMACGAMgNAsLdpoVKi8AVe8A1QblQlWRKt0AoULw2w1zGxoAABdiAviQhF/mAAAAAElFTkSuQmCC"
+      "icon": "<svg fill=\"currentColor\" viewBox=\"0 0 425.15 93.48\" xmlns=\"http://www.w3.org/2000/svg\">\n  <defs></defs>\n  <path d=\"M 48.814 91.68 C 36.169 91.68 25.479 87.314 16.748 78.583 C 8.016 69.851 3.651 59.163 3.651 46.517 C 3.651 33.872 8.016 23.182 16.748 14.451 C 25.479 5.719 36.169 1.354 48.814 1.354 C 58.148 1.354 66.578 3.913 74.106 9.032 C 81.632 14.15 87.052 20.623 90.365 28.452 L 364.957 28.452 L 364.957 64.583 L 90.365 64.583 C 87.052 72.41 81.632 78.884 74.106 84.002 C 66.578 89.121 58.148 91.68 48.814 91.68 Z\" style=\"\"></path>\n  <ellipse style=\"stroke: rgb(0, 0, 0);\" cx=\"377.244\" cy=\"45.914\" rx=\"44.928\" ry=\"44.928\"></ellipse>\n</svg>"
     },
     {
       "type": "LineToolHorizontalRay",
       "label": "Horizontal Ray (Right Click)",
       "group": "LineTool",
-      "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAZAQMAAAD+JxcgAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAZQTFRFAAAATU1NkJ+rOQAAAAJ0Uk5TAP9bkSK1AAAANElEQVR4nGNggABGEMEEIlhABAeI+AASF0AlHmAqA4kzKAAx8wGQuAMKwd6AoYzBAWonAwAcLwTgNfJ3RQAAAABJRU5ErkJggg=="
+      "icon": "<svg fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\" height=\"24\" viewBox=\"0 -960 960 960\" width=\"24\"><path d=\"M180-380q-42 0-71-29t-29-71q0-42 29-71t71-29q31 0 56 17t36 43h608v80H272q-11 26-36 43t-56 17Z\"/></svg>\n"
     },
     {
       "type": "RangeTool",
       "label": "Measure",
-      "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAZAQMAAAD+JxcgAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAZQTFRFAAAATU1NkJ+rOQAAAAJ0Uk5TAP9bkSK1AAAAIUlEQVR4nGNggAPm/w9gTA4QIQMitECEJ1yMEgLNDiAAADfgBMRu78GgAAAAAElFTkSuQmCC"
+      "icon": "<svg fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\" height=\"24\" viewBox=\"0 -960 960 960\" width=\"24\"><path d=\"M160-240q-33 0-56.5-23.5T80-320v-320q0-33 23.5-56.5T160-720h640q33 0 56.5 23.5T880-640v320q0 33-23.5 56.5T800-240H160Zm0-80h640v-320H680v160h-80v-160h-80v160h-80v-160h-80v160h-80v-160H160v320Zm120-160h80-80Zm160 0h80-80Zm160 0h80-80Zm-120 0Z\"/></svg>\n"
     },
     {
       "type": "Trash",
-      "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAZAQMAAAD+JxcgAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAZQTFRFAAAATU1NkJ+rOQAAAAJ0Uk5TAP9bkSK1AAAALUlEQVR4nGNgAIN6ENHQACX4//9gYBBgYIESYC4LkA0lPEkmGFAI5v8PILYCAHygDJxlK0RUAAAAAElFTkSuQmCC"
+      "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"currentColor\" height=\"24\" viewBox=\"0 -960 960 960\" width=\"24\"><path d=\"M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z\"/></svg>\n"
     }
   ]
 }

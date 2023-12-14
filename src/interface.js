@@ -158,31 +158,31 @@ class NightVision {
     // *** Internal variables ***
 
     get layout() {
-        let chart = this.comp.getChart()
+        let chart = this.comp?.getChart()
         if (!chart) return null
         return chart.getLayout()
     }
 
     get range() {
-        let chart = this.comp.getChart()
+        let chart = this.comp?.getChart()
         if (!chart) return null
         return chart.getRange()
     }
 
     set range(val) {
-        let chart = this.comp.getChart()
+        let chart = this.comp?.getChart()
         if (!chart) return
         chart.setRange(val)
     }
 
     get cursor() {
-        let chart = this.comp.getChart()
+        let chart = this.comp?.getChart()
         if (!chart) return null
         return chart.getCursor()
     }
 
     set cursor(val) {
-        let chart = this.comp.getChart()
+        let chart = this.comp?.getChart()
         if (!chart) return
         chart.setCursor(val)
     }

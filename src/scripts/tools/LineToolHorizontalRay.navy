@@ -18,12 +18,24 @@ prop('pins', {type: 'array', def: undefined});
 prop('color', {type: 'string', def: '#dc9800'});
 prop('lineWidth', {type: 'string', def: 2});
 prop('lineStyle', {type: 'string', def: 0});
+prop('initYPos', {type: 'number', def: undefined});
 
 
 function init(ctx) {
     if (!$props.pins) {
-        setTimeout(() => $events.emit('object-selected', {id: $core.id}));
-        state = 'drawing';
+        $events.emit('object-selected', {id: $core.id});
+
+        if ($props.initYPos) {
+            pin1 = {
+                t: $core.cursor.time,
+                v: $core.layout.y2value($props.initYPos)
+            }
+
+            $events.emit('drawing-mode-off', {});
+            $events.emit('change-tool-settings', {pins: [pin1], id: $core.id});
+
+            $events.emitSpec('chart', 'update-layout');
+        }
     }
 }
 
@@ -86,20 +98,6 @@ function mousedown(event) {
 
     if (event.which === 3) {
         return void 0;
-    }
-
-    if (state === 'drawing') {
-        pin1 = {
-            t: $core.cursor.time,
-            v: layout.y2value(event.layerY)
-        }
-
-        state = 'finished';
-        $events.emit('drawing-mode-off', {});
-        $events.emit('change-tool-settings', {pins: [pin1], id: $core.id});
-        $props.pins = [pin1];
-    } else if (state === 'finished') {
-        state = 'idle';
     }
 
     const [mouseX, mouseY] = getMouseCoords(event);

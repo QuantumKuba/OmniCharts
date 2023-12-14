@@ -382,7 +382,6 @@ export default class Input {
     }
 
     pinchZoom(scale) {
-
         if (this.meta.scrollLock) return
 
         let data = this.hub.mainOv.dataSubset

@@ -28,11 +28,21 @@ prop('pins', {type: 'array', def: undefined});
 prop('color', {type: 'string', def: '#dc9800'});
 prop('lineWidth', {type: 'string', def: 2});
 prop('lineStyle', {type: 'string', def: 0});
+prop('initYPos', {type: 'number', def: undefined});
 
 function init(ctx) {
     if (!$props.pins) {
         setTimeout(() => $events.emit('object-selected', {id: $core.id}));
-        // state = 'drawing';
+
+        if ($props.initYPos) {
+            pin1 = {
+                t: $core.cursor.time,
+                v: $core.layout.y2value($props.initYPos)
+            }
+            pin2 = {...pin1};
+            state = 'drawing';
+            $events.emitSpec('chart', 'update-layout');
+        }
     }
 }
 

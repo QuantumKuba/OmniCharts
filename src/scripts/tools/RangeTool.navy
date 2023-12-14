@@ -12,16 +12,14 @@ prop('shiftMode', {type: 'boolean', def: false});
 prop('initYPos', {type: 'number', def: undefined});
 
 function init() {
-    if ($props.shiftMode && $props.initYPos) {
-        setTimeout(() => {
-            pin1 = {
-                t: $core.cursor.time,
-                v: $core.layout.y2value($props.initYPos)
-            }
-            pin2 = {...pin1};
-            state = 'drawing';
-            $events.emitSpec('chart', 'update-layout');
-        })
+    if ($props.initYPos) {
+        pin1 = {
+            t: $core.cursor.time,
+            v: $core.layout.y2value($props.initYPos)
+        }
+        pin2 = {...pin1};
+        state = 'drawing';
+        $events.emitSpec('chart', 'update-layout');
     }
 }
 
@@ -168,7 +166,7 @@ function mousedown(event) {
         state = 'drawing'
     } else if (state === 'drawing') {
         state = 'finished'
-        setTimeout(() => $events.emit('drawing-mode-off', {}))
+        $events.emit('drawing-mode-off', {});
     } else if (state === 'finished') {
         state = 'idle'
         pin1 = null

@@ -5,10 +5,10 @@
     export let props = {};
     export let layout = {};
     export let toolbarItem = {};
-    export let selected = false;
     export let subs = {};
     export let tools = [];
     export let selectedTool = undefined;
+    export let selected = false;
 
     let toolbarItemUpdId = `toolbar-item`;
     let toolbarItemId = `${props.id}-toolbar-item`;
@@ -42,11 +42,10 @@
     }
 
     $:getIconStyle = `
-        background-image: url(${getSubItem(selected) ? getSubItem(selected).icon : toolbarItem.icon});
         width: ${props.config.TB_ICON}px;
         height: ${props.config.TB_ICON}px;
-        margin: ${props.config.TB_ITEM_M}px;
-        filter: brightness(${props.config.TB_ICON_BRI});
+        padding: ${props.config.TB_ITEM_M}px;
+        color: #d1d4dc;
     `;
 
     const getSubItem = () => {
@@ -77,7 +76,7 @@
         // let sel = this.dc.tool === item.type
         return `
             height: ${h}px;
-            color: #888888
+            color: #d1d4dc;
         `
     }
 
@@ -86,12 +85,10 @@
         let br = conf.TB_ICON_BRI
         let im = conf.TB_ITEM_M
         return `
-            background-image: url(${data.icon});
             width: 25px;
             min-width: 25px;
             height: 25px;
             margin: ${im}px;
-            filter: brightness(${br});
         `
     }
 
@@ -182,7 +179,7 @@
 
     .nvjs-toolbar-item.selected > .nvjs-toolbar-item-icon,
     .nvjs-toolbar-list-item.selected > .nvjs-toolbar-item-icon {
-        filter: brightness(1.45) sepia(1) hue-rotate(0deg) saturate(4.5) !important;
+        color: #dc9800 !important;
     }
 
     .nvjs-pixelated {
@@ -233,7 +230,9 @@
             class="nvjs-toolbar-item-icon nvjs-pixelated"
             style={getIconStyle}
             on:mousedown={(event) => selectTool(event, toolbarItem)}
-    ></div>
+    >
+        {@html getSubItem(selectedTool) ? getSubItem(selectedTool).icon : toolbarItem.icon}
+    </div>
 
     {#if toolbarItem?.items?.length}
         <div
@@ -252,7 +251,9 @@
                      on:mousedown={(event) => selectToolSub(event, groupItem)}
                      title={groupItem.label}
                 >
-                    <div class="nvjs-list-item-icon nvjs-pixelated" style={getChildIconStyle(groupItem)}></div>
+                    <div class="nvjs-list-item-icon nvjs-pixelated" style={getChildIconStyle(groupItem)}>
+                        {@html groupItem.icon}
+                    </div>
                     <div>{groupItem.label}</div>
                 </div>
             {/each}
