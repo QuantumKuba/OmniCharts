@@ -1,5 +1,5 @@
 
-// Full data reset test
+// RangeTool data set 
 
 import data from '../../data/data-ohlcv-rsi.json?id=rangeTool'
 

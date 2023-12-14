@@ -8,6 +8,8 @@ import DataHub from '../dataHub.js'
 import MetaHub from '../metaHub.js'
 import Scan from '../dataScanner.js'
 import Utils from '../../stuff/utils.js'
+import Mouse from '../input/mouse.js'
+import Keys from '../input/keys.js'
 
 // Build-in primitives
 import Candle from '../primitives/navyLib/candle.js'
@@ -19,6 +21,9 @@ import layoutCnv from '../primitives/navyLib/layoutCnvFast.js'
 import avgVolume from '../primitives/navyLib/avgVolume.js'
 import roundRect from '../primitives/navyLib/roundRect.js'
 import drawArrow from '../primitives/navyLib/arrow.js'
+import TrendLine from '../primitives/navyLib/trendLine.js'
+import Segment from '../primitives/navyLib/seg.js'
+import Pin from '../primitives/navyLib/pin.js'
 import {
     fastSma, candleColor, rescaleFont
 } from '../primitives/navyLib/helperFns.js'
@@ -40,19 +45,25 @@ export default class OverlayEnv {
         this.id = id
         this.handlers = {}
 
-        this.$core = { hub, meta, scan }
+        this.$core = { hub, meta, scan, events }
         this.update(ovSrc, layout, props)
 
         this.$props = ovSrc.props
         this.$events = events
 
+        this.$core.mouse = new Mouse(this.$core)
+        this.$core.keys = new Keys(this.$core)
+
         this.lib = {
             Candle, Volbar, layoutCnv, formatCash,
             candleBody, candleWick, volumeBar,
             fastSma, avgVolume, candleColor, 
-            roundRect, rescaleFont, drawArrow,
+            roundRect, rescaleFont, drawArrow, 
+            TrendLine, Segment, Pin,
             Utils
         }
+
+        this.$core.lib = this.lib 
 
     }
 
@@ -73,6 +84,7 @@ export default class OverlayEnv {
         core.dataSubset = overlay.dataSubset
         core.data = overlay.data
         core.view = overlay.dataView
+        core.dataExt = overlay.dataExt
         core.id = overlay.id
         core.paneId = core.layout.id
         // TODO: core.fullLayout = ...

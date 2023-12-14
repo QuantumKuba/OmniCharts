@@ -33,6 +33,7 @@ import indexBased from '../tests/tfs-test/allIndexBased.js'
 // More tests
 import indicators from '../tests/indicators/indicators.js'
 import rangeTool from '../tests/tools/rangeTool.js'
+import lineTool from '../tests/tools/lineTool.js'
 import watchPropTest from '../tests/navy/watchPropTest.js'
 
 // More tests
@@ -104,7 +105,8 @@ onMount(() => {
 
     stack.setGroup('tools-test')
 
-    rangeTool(stack, chart)
+    //rangeTool(stack, chart)
+    lineTool(stack, chart)
 
     stack.setGroup('navy-test')
 

@@ -69,6 +69,7 @@ class DataHub {
                     ov.indexOffset
                 )
                 ov.dataSubset = ov.dataView.makeSubset()
+                ov.dataExt = ov.dataExt || {}
                 ov.settings = ov.settings || {}
                 ov.props = ov.props || {}
                 ov.uuid = ov.uuid || Utils.uuid3()
@@ -154,6 +155,12 @@ class DataHub {
     ovData(paneId, ovId) {
         return this.panes()[paneId]
             ?.overlays[ovId]?.data
+    }
+
+    // [API] Get overlay extra data by paneId & ovId
+    ovDataExt(paneId, ovId) {
+        return this.panes()[paneId]
+            ?.overlays[ovId]?.dataExt
     }
 
     // [API] Get overlay data subset by paneId & ovId

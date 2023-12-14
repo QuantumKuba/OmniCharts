@@ -182,6 +182,7 @@ export default class Input {
 
     mousemove(event) {
         if (Utils.isMobile) return
+        event = Utils.adjustMouse(event, this.canvas)
         this.events.emit('cursor-changed', {
             visible: true,
             gridId: this.gridId,
@@ -194,17 +195,20 @@ export default class Input {
 
     mouseout(event) {
         if (Utils.isMobile) return
+        event = Utils.adjustMouse(event, this.canvas)
         this.events.emit('cursor-changed', {visible: false})
         this.propagate('mouseout', event)
     }
 
     mouseup(event) {
+        event = Utils.adjustMouse(event, this.canvas)
         this.drug = null
         this.events.emit('cursor-locked', false)
         this.propagate('mouseup', event)
     }
 
     mousedown(event) {
+        event = Utils.adjustMouse(event, this.canvas)
         if (Utils.isMobile) return
         this.events.emit('cursor-locked', true)
         this.propagate('mousedown', event)
@@ -214,7 +218,7 @@ export default class Input {
 
     // Simulated mousedown (for mobile)
     simMousedown(event) {
-        if (event.srcEvent.defaultPrevented) return
+        event = Utils.adjustMouse(event, this.canvas)if (event.srcEvent.defaultPrevented) return
         this.events.emit('grid-mousedown', [this.gridId, event])
         this.propagate('mousemove', this.touch2mouse(event))
         this.events.emitSpec(this.rrId, 'update-rr')
