@@ -1,0 +1,460 @@
+// NavyJS ~ 0.2-lite
+
+// <ds>Heatmap</ds>, format:
+// [<timestamp>, <open>, <high>, <low>, <close>, <?volume>]
+
+
+[OVERLAY name = Heatmap, ctx = Canvas, version = 1.0.0]
+
+prop('colorScaleAsks', {type: 'string', def: (value) => gradient(value, 'asks')(value)});
+prop('colorScaleBids', {type: 'string', def: (value) => gradient(value, 'bids')(value)});
+
+let redraw = false;
+let hoveredLimitOrder = {x: 0, y: 0};
+let hoveredYAskValue;
+let hoveredYBidValue;
+let hoveredTimestamp;
+let cellHeightStep = 0;
+let fullLimitOrder = true;
+let redrawCount = 0;
+let drawnElements = 0;
+let initialCellWidth = 0;
+
+init() {
+    redraw = true;
+    console.log('init');
+}
+
+draw(ctx)
+{
+    if (!$core.meta.heatmap) {
+        return void 0;
+    }
+
+    if (redraw) {
+        drawHeatmap();
+    } else {
+        handleHoveredLimitOrders(ctx);
+        drawHoveredLimitOrders(ctx);
+    }
+
+    // if (window.drawMore) {
+    //     drawMore();
+    // }
+    //
+    // if (window.redrawLast) {
+    //     redrawLast();
+    // }
+    //
+    // if (window.redrawNew) {
+    //     redrawNew();
+    // }
+}
+
+function redrawNew() {
+    window.redrawNew = false;
+
+    if (!$core.meta.heatmap) {
+        return void 0;
+    }
+
+    let obj = new PIXI.Graphics();
+
+    const data = $core.data;
+    const layout = $core.layout;
+
+    const step = layout.$step;
+
+    const y1 = layout.value2y(0, false);
+    const y2 = layout.value2y(step, false);
+    const yStepRange = y1 - y2;
+    const yOffset = step * Math.pow(10, layout.prec);
+    let cellHeight = yStepRange / yOffset / $core.meta.heatmap.heatmapApp.stage.scale.y;
+    cellHeight = Math.max(cellHeight, 2); // Ensure cellHeight is at least 2
+
+    const lastElementData = data[data.length - 1];
+
+    const lastStageChild = $core.meta.heatmap.heatmapApp.stage.children[$core.meta.heatmap.heatmapApp.stage.children.length - 1];
+    const cellWidth = lastStageChild.geometry.graphicsData[0].shape.width;
+    const xPos = lastStageChild.geometry.graphicsData[0].shape.x + cellWidth;
+
+    const asks = lastElementData[1].a;
+    const bids = lastElementData[1].b;
+
+    for (let j = 0; j < asks.length; j += 2) {
+        const price = asks[j];
+        const quantity = asks[j + 1];
+        const y = (layout.value2y(price, false) - $core.meta.heatmap.heatmapApp.stage.position.y) / $core.meta.heatmap.heatmapApp.stage.scale.y;
+        obj.beginFill($props.colorScaleAsks(price * quantity));
+        obj.drawRect(xPos, y, cellWidth, cellHeight);
+    }
+
+    for (let j = 0; j < bids.length; j += 2) {
+        const price = bids[j];
+        const quantity = bids[j + 1];
+        const y = (layout.value2y(price, false) - $core.meta.heatmap.heatmapApp.stage.position.y) / $core.meta.heatmap.heatmapApp.stage.scale.y;
+        obj.beginFill($props.colorScaleBids(price * quantity));
+        obj.drawRect(xPos, y, cellWidth, cellHeight);
+    }
+
+    drawnElements = data.length;
+    $core.meta.heatmap.heatmapApp.stage.addChild(obj);
+}
+
+function redrawLast() {
+    window.redrawLast = false;
+
+    if (!$core.meta.heatmap) {
+        return void 0;
+    }
+
+    const data = $core.data;
+    const layout = $core.layout;
+
+
+    const step = layout.$step;
+
+    const y1 = layout.value2y(0, false);
+    const y2 = layout.value2y(step, false);
+    const yStepRange = y1 - y2;
+    const yOffset = step * Math.pow(10, layout.prec);
+    let cellHeight = yStepRange / yOffset / $core.meta.heatmap.heatmapApp.stage.scale.y;
+    cellHeight = Math.max(cellHeight, 2); // Ensure cellHeight is at least 2
+
+    const lastElementData = data[data.length - 1];
+    const lastStageChild = $core.meta.heatmap.heatmapApp.stage.children[$core.meta.heatmap.heatmapApp.stage.children.length - 1];
+    const xPos = lastStageChild.geometry.graphicsData[0].shape.x;
+    const cellWidth = lastStageChild.geometry.graphicsData[0].shape.width;
+    lastStageChild.destroy();
+    $core.meta.heatmap.heatmapApp.stage.removeChild(lastStageChild);
+
+    const asks = lastElementData[1].a;
+    const bids = lastElementData[1].b;
+
+    let obj = new PIXI.Graphics();
+
+    for (let j = 0; j < asks.length; j += 2) {
+        const price = asks[j];
+        const quantity = asks[j + 1];
+        const y = (layout.value2y(price, false) - $core.meta.heatmap.heatmapApp.stage.position.y) / $core.meta.heatmap.heatmapApp.stage.scale.y;
+        obj.beginFill($props.colorScaleAsks(price * quantity));
+        obj.drawRect(xPos, y, cellWidth, cellHeight);
+    }
+
+    for (let j = 0; j < bids.length; j += 2) {
+        const price = bids[j];
+        const quantity = bids[j + 1];
+        const y = (layout.value2y(price, false) - $core.meta.heatmap.heatmapApp.stage.position.y) / $core.meta.heatmap.heatmapApp.stage.scale.y;
+        obj.beginFill($props.colorScaleBids(price * quantity));
+        obj.drawRect(xPos, y, cellWidth, cellHeight);
+    }
+
+    $core.meta.heatmap.heatmapApp.stage.addChild(obj);
+}
+
+function drawMore() {
+    window.drawMore = false;
+
+    if (!$core.meta.heatmap) {
+        return void 0;
+    }
+
+    const data = $core.data;
+    const layout = $core.layout;
+
+    const step = layout.$step;
+
+    const y1 = layout.value2y(0, false);
+    const y2 = layout.value2y(step, false);
+    const yStepRange = y1 - y2;
+    const yOffset = step * Math.pow(10, layout.prec);
+    let cellHeight = yStepRange / yOffset / $core.meta.heatmap.heatmapApp.stage.scale.y;
+    cellHeight = Math.max(cellHeight, 2); // Ensure cellHeight is at least 2
+
+    const startIdx = drawnElements;
+    drawnElements = data.length;
+
+    const stageChild = $core.meta.heatmap.heatmapApp.stage.children[0];
+    const cellWidth = stageChild.geometry.graphicsData[0].shape.width;
+
+    for (let i = startIdx, n = data.length - 1; i <= n; i++) {
+        let obj = new PIXI.Graphics();
+
+        const timestamp = data[i][0];
+        const x = (layout.ti2xWithoutRound(timestamp) - $core.meta.heatmap.heatmapApp.stage.position.x) / $core.meta.heatmap.heatmapApp.stage.scale.x;
+        let currentPrice = 0;
+
+        try {
+            currentPrice = $core.hub.mainOv.data[i - 1][4] ?? 0;
+        } catch (e) {
+            // Handle exceptions if necessary
+        }
+
+        const asks = data[i][1].a;
+        const bids = data[i][1].b;
+
+        for (let j = 0; j < asks.length; j += 2) {
+            const price = asks[j];
+            const quantity = asks[j + 1];
+            const y = (layout.value2y(price, false) - $core.meta.heatmap.heatmapApp.stage.position.y) / $core.meta.heatmap.heatmapApp.stage.scale.y;
+            obj.beginFill($props.colorScaleAsks(price * quantity));
+            obj.drawRect(x - (cellWidth / 2), y, cellWidth, cellHeight);
+        }
+
+        for (let j = 0; j < bids.length; j += 2) {
+            const price = bids[j];
+            const quantity = bids[j + 1];
+            const y = (layout.value2y(price, false) - $core.meta.heatmap.heatmapApp.stage.position.y) / $core.meta.heatmap.heatmapApp.stage.scale.y;
+            obj.beginFill($props.colorScaleBids(price * quantity));
+            obj.drawRect(x - (cellWidth / 2), y, cellWidth, cellHeight);
+        }
+
+        $core.meta.heatmap.heatmapApp.stage.addChildAt(obj, 0);
+    }
+}
+
+function drawHeatmap() {
+    if (!$core.meta.heatmap) {
+        return void 0;
+    }
+
+    for (const child of $core.meta.heatmap.heatmapApp.stage.children) {
+        child.destroy();
+        $core.meta.heatmap.heatmapApp.stage.removeChild(child);
+    }
+
+    const data = $core.data;
+    const view = $core.view;
+    const layout = $core.layout;
+
+    const cellWidth = layout.pxStep;
+    initialCellWidth = layout.pxStep;
+
+    const step = layout.$step;
+
+    const y1 = layout.value2y(0, false);
+    const y2 = layout.value2y(step, false);
+    const yStepRange = y1 - y2;
+    const yOffset = step * Math.pow(10, layout.prec);
+    let cellHeight = yStepRange / yOffset;
+    cellHeight = Math.max(cellHeight, 2); // Ensure cellHeight is at least 2
+
+    for (let i = 0, n = data.length - 1; i <= n; i++) {
+        let obj = new PIXI.Graphics();
+
+        const timestamp = data[i][0];
+        const x = layout.ti2xWithoutRound(timestamp);
+        let currentPrice = 0;
+
+        try {
+            currentPrice = $core.hub.mainOv.data[i - 1][4] ?? 0;
+        } catch (e) {
+            // Handle exceptions if necessary
+        }
+
+        const asks = data[i][1].a;
+        const bids = data[i][1].b;
+
+        if (fullLimitOrder) {
+            for (let j = 0; j < asks.length; j += 2) {
+                const price = asks[j];
+                const quantity = asks[j + 1];
+                const y = layout.value2y(price, false);
+                obj.beginFill($props.colorScaleAsks(price * quantity));
+                obj.drawRect(x - (cellWidth / 2) + 0.4, y, cellWidth, cellHeight);
+            }
+
+            for (let j = 0; j < bids.length; j += 2) {
+                const price = bids[j];
+                const quantity = bids[j + 1];
+                const y = layout.value2y(price, false);
+
+                obj.beginFill($props.colorScaleBids(price * quantity));
+                obj.drawRect(x - (cellWidth / 2) + 0.4, y, cellWidth, cellHeight);
+            }
+        }
+
+        $core.meta.heatmap.heatmapApp.stage.addChildAt(obj,0);
+    }
+
+    console.log($core.meta.heatmap.heatmapApp.stage.children[0].geometry.graphicsData[0].shape.x);
+    drawnElements = data.length;
+    redraw = false;
+    (window.redraw) = false;
+    redrawCount++;
+}
+
+function handleHoveredLimitOrders(ctx) {
+    const data = $core.data;
+    const layout = $core.layout;
+    const y1 = $core.layout.value2y(0);
+    const y2 = $core.layout.value2y($core.layout.$step);
+    const yStepRange = y1 - y2;
+    const yOffset = $core.layout.$step * Math.pow(10, $core.layout.prec);
+    let cellHeight = yStepRange / yOffset;
+    if (cellHeight < 2) {
+        cellHeight = 2;
+    }
+
+    if (hoveredLimitOrder) {
+        cellHeightStep = $core.layout.y2value(0) - $core.layout.y2value(cellHeight);
+        const hoveredColumn = data.find(([timestamp,]) => timestamp === hoveredLimitOrder.x);
+        hoveredTimestamp = hoveredColumn ? hoveredColumn[0] : 0;
+        const yHoveredData = hoveredColumn ? hoveredColumn[1] : undefined;
+
+        if (hoveredTimestamp && yHoveredData) {
+            hoveredYAskValue = yHoveredData.a.find((value) => inRange(value, parseFloat(hoveredLimitOrder.y)));
+            hoveredYBidValue = yHoveredData.b.find((value) => inRange(value, parseFloat(hoveredLimitOrder.y)));
+        }
+    }
+}
+
+function drawHoveredLimitOrders(ctx) {
+    const data = $core.data;
+    const view = $core.view;
+    const layout = $core.layout;
+    const cellWidth = layout.pxStep;
+    const y1 = $core.layout.value2y(0);
+    const y2 = $core.layout.value2y($core.layout.$step);
+    const yStepRange = y1 - y2;
+    const yOffset = $core.layout.$step * Math.pow(10, $core.layout.prec);
+    let cellHeight = yStepRange / yOffset;
+    if (cellHeight < 2) {
+        cellHeight = 2;
+    }
+
+    let xColumnsToHighlight = [];
+    if (hoveredTimestamp) {
+        xColumnsToHighlight = getRowsToHighlight(hoveredTimestamp, view, data);
+    }
+
+    const hoveredYValue = hoveredYAskValue ?? hoveredYBidValue;
+
+    if (!hoveredYValue) {
+        return void 0;
+    }
+
+    for (const timestamp of xColumnsToHighlight) {
+        ctx.strokeRect(layout.ti2xWithoutRound(timestamp) - (cellWidth / 2), layout.value2y(hoveredYValue), cellWidth, cellHeight);
+        ctx.strokeStyle = document.body.classList.contains('light-theme') ? 'black' : 'white';
+    }
+}
+
+function getRowsToHighlight(hoveredTimestamp, view, data) {
+    let xColumnsToHighlight = [];
+    const idx = data.findIndex((value) => value[0] === hoveredTimestamp);
+    for (let i = idx, n = view.i2; i <= n; i++) {
+        const timestamp = data[i][0];
+
+        if (limitOrderExists(data[i])) {
+            xColumnsToHighlight.push(timestamp);
+        } else {
+            break;
+        }
+    }
+
+    for (let i = idx, n = view.i1; i > n; i--) {
+        const timestamp = data[i][0];
+        if (limitOrderExists(data[i])) {
+            xColumnsToHighlight.push(timestamp)
+        } else {
+            break;
+        }
+    }
+
+    return xColumnsToHighlight;
+}
+
+function limitOrderExists(data) {
+    let exists = false;
+    for (let j = 0; j <= data[1].a.length; j += 2) {
+        let price = data[1].a[j];
+        if (inRange(price, parseFloat(hoveredLimitOrder.y))) {
+            exists = true;
+            break;
+        }
+    }
+
+    for (let j = 0; j <= data[1].b.length; j += 2) {
+        let price = data[1].b[j];
+        if (inRange(price, parseFloat(hoveredLimitOrder.y))) {
+            exists = true;
+            break;
+        }
+    }
+
+    return exists;
+}
+
+function inRange(price, value) {
+    return price + 0 >= value && price - cellHeightStep <= value
+}
+
+function click(event) {
+    if ($core.meta.tool !== 'Cursor') {
+        return void 0;
+    }
+
+    event.target.dispatchEvent(new CustomEvent("limit-order-clicked", {
+        detail: {
+            hoveredYAskValue,
+            hoveredYBidValue,
+            hoveredTimestamp,
+            x: event.layerX - 200,
+            y: event.layerY
+        },
+        bubbles: true
+    }));
+}
+
+function mousemove(event) {
+    const x = $core.cursor.time;
+    const precision = Math.pow(10, $core.layout.prec);
+    const roundedY = (Math.ceil($core.layout.y2value(event.layerY) * precision) / precision);
+    const y = roundedY.toFixed($core.layout.prec);
+    hoveredLimitOrder = {x, y};
+}
+
+function mouseout() {
+    hoveredLimitOrder = {x: 0, y: 0};
+    hoveredYAskValue = undefined;
+    hoveredYBidValue = undefined;
+    hoveredTimestamp = undefined;
+}
+
+function gradient(val, type) {
+    const min_value = 10_000;
+    const max_value = 500_000;
+    const startOpacity = 1;
+    const opacityMin = 0.1;
+    const opacityMax = 1;
+
+    const opacity = Math.max(val / max_value, 0.2);
+
+    if (type === 'asks') {
+        return d3.scaleLinear()
+            .range([`rgba(255,0,0, ${opacityMin})`, `rgba(255,242,0, ${(opacityMin + opacityMax) / 2})`, `rgba(30,150,0,${opacityMax})`])
+            .domain([5_000, max_value]);
+    }
+
+    if (type === 'bids') {
+        return d3.scaleLinear()
+            .range([`rgba(30,150,0,${opacityMin})`, `rgba(255,242,0,${(opacityMin + opacityMax) / 2})`, `rgba(255,0,0, ${opacityMax})`])
+            .domain([5_000, max_value]);
+    }
+}
+
+static yRange(data) {
+    let len = data.length
+    var h, l, high = -Infinity, low = Infinity
+    for (var i = 0; i < len; i++) {
+        let point = data[i]
+        if (point[2] > high) high = point[2]
+        if (point[3] < low) low = point[3]
+    }
+    return [high, low]
+}
+
+legend()
+=>
+[]

@@ -29,13 +29,17 @@ export default class Candle {
         //let h = Math.abs(data.o - data.c)
         //let max_h = data.c === data.o ? 1 : 2
         let x05 = data.x - 1 // Math.floor(data.x) + HPX
+        // let x05 = data.x // Math.floor(data.x) + HPX
 
         this.ctx.lineWidth = 1
         this.ctx.strokeStyle = wickColor
 
         this.ctx.beginPath()
-        this.ctx.moveTo(x05, Math.floor(data.h))
-        this.ctx.lineTo(x05, Math.floor(data.l))
+        // this.ctx.moveTo(x05, Math.floor(data.h))
+        // this.ctx.lineTo(x05, Math.floor(data.l))
+
+        this.ctx.moveTo(x05, data.h)
+        this.ctx.lineTo(x05, data.l)
 
         this.ctx.stroke()
 
@@ -58,12 +62,15 @@ export default class Candle {
             this.ctx.beginPath()
             this.ctx.moveTo(
                 x05,
-                Math.floor(Math.min(data.o, data.c)),
+                // Math.floor(Math.min(data.o, data.c)),
+                Math.min(data.o, data.c),
             )
             this.ctx.lineTo(
                 x05,
-                Math.floor(Math.max(data.o, data.c)) +
-                    (data.o === data.c ? 1 : 0)
+                Math.max(data.o, data.c) +
+                (data.o === data.c ? 1 : 0)
+                // Math.floor(Math.max(data.o, data.c)) +
+                //     (data.o === data.c ? 1 : 0)
             )
 
             this.ctx.stroke()

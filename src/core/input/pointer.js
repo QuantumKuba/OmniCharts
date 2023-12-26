@@ -218,7 +218,8 @@ export default class Input {
 
     // Simulated mousedown (for mobile)
     simMousedown(event) {
-        event = Utils.adjustMouse(event, this.canvas)if (event.srcEvent.defaultPrevented) return
+        event = Utils.adjustMouse(event, this.canvas)
+        if (event.srcEvent.defaultPrevented) return
         this.events.emit('grid-mousedown', [this.gridId, event])
         this.propagate('mousemove', this.touch2mouse(event))
         this.events.emitSpec(this.rrId, 'update-rr')

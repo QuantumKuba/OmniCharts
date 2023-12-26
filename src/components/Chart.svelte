@@ -17,6 +17,7 @@ import Pane from './Pane.svelte'
 import Botbar from './Botbar.svelte'
 import NoDataStub from './NoDataStub.svelte'
 import Toolbar from "./Toolbar.svelte";
+import Heatmap from "../core/primitives/heatmap.js";
 
 export let props = {}
 
@@ -72,7 +73,6 @@ events.on('chart:update-layout', update)
 events.on('chart:full-update', fullUpdate)
 
 onMount(() => {
-
     hub.calcSubset(range)
     hub.detectMain()
     hub.loadScripts(range, scan.tf, true)
@@ -80,13 +80,15 @@ onMount(() => {
 
     scan.updatePanesHash()
 
-    layout = new Layout(chartProps, hub, meta)
+    layout = new Layout(chartProps, hub, meta);
 
     // console.log(layout) // DEBUG
 })
 
 onDestroy(() => {
+    console.log('destroyHeatmap');
     // Clean-up event listeners on 'chart' component
+    meta.destroyHeatmap();
     events.off('chart')
 })
 
@@ -100,7 +102,7 @@ function onCursorChanged($cursor, emit = true) {
             setTimeout(() => update())
         }
     }
-    if (emit) events.emit('$cursor-update', 
+    if (emit) events.emit('$cursor-update',
         Utils.makeCursorEvent($cursor, cursor, layout)
     )
     //if (cursor.locked) return // filter double updates (*)

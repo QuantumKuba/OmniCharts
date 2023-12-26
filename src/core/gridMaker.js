@@ -184,7 +184,6 @@ function GridMaker(id, specs, mainGrid = null) {
             }
 
         } else {
-
             self.tStep = mainGrid.tStep
             self.pxStep = mainGrid.pxStep
             self.startx = mainGrid.startx
@@ -218,7 +217,7 @@ function GridMaker(id, specs, mainGrid = null) {
 
         if (timeFrame < DAY) {
             prevT += timezone * HOUR
-            t += timezone * HOUR
+            // t += timezone * HOUR
         }
         let d = timezone * HOUR
 

@@ -5,6 +5,7 @@ import Utils from '../stuff/utils.js'
 import Events from './events.js'
 import DataHub from './dataHub.js'
 import Keys from "../stuff/keys.js";
+import Heatmap from "./primitives/heatmap.js";
 
 class MetaHub {
 
@@ -21,25 +22,20 @@ class MetaHub {
         events.on('meta:scroll-lock', this.onScrollLock.bind(this))
         events.on('meta:tool-selected', this.toolSelected.bind(this));
         events.on('meta:drawing-mode-off', this.drawingModeOff.bind(this));
-        events.on('meta:change-tool-settings', this.changeToolSettings.bind(this));
+        events.on('meta:change-tool-data', this.changeToolData.bind(this));
         events.on('meta:object-selected', this.objectSelected.bind(this));
         events.on('meta:remove-all-tools', this.removeAllTools.bind(this));
 
-        document.addEventListener('keydown', ({key}) => key === 'Delete' || key === 'Backspace' ? this.removeTool() : void 0);
-        document.addEventListener('contextmenu', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-        });
-
         // Persistent meta storage
         this.storage = {};
+        this.heatmap = undefined;
 
         this.tool = 'Cursor';
         this.drawingMode = false;
         this.selectedTool = undefined;
     }
 
-    init(props) {
+    init(props, layout) {
         this.panes = 0 // Panes processed
         this.ready = false
         // [API] read-only
@@ -63,32 +59,21 @@ class MetaHub {
         this.scrollLock = false // Scroll lock state
     }
 
+    initHeatmap(id) {
+        this.heatmap = new Heatmap(id);
+    }
+
+    destroyHeatmap() {
+        this.heatmap.destroy();
+        this.heatmap = undefined;
+    }
+
+    resetHeatmap() {
+        this.heatmap.reset();
+    }
+
     // User tapped grid (& deselected all overlays)
     onGridMousedown(event) {
-        this.events.emit('object-selected', {id: undefined});
-
-        if (event[1].shiftKey) {
-            this.removeRangeTool();
-            this.events.emit('tool-selected', {type: 'RangeTool'});
-            this.tool = 'RangeTool';
-            this.drawingMode = false;
-            this.buildTool({shiftMode: true, initYPos: event[1].layerY});
-            return void 0;
-        }
-
-        if (event[1].which === 3 && !this.drawingMode) {
-            this.events.emit('tool-selected', {type: 'LineToolHorizontalRay'});
-            this.tool = 'LineToolHorizontalRay';
-            return void 0;
-        }
-
-        if (this.tool && this.tool !== 'Cursor' && !this.drawingMode) {
-            this.drawingMode = true;
-            this.buildTool({initYPos: event[1].layerY});
-        } else {
-            this.removeRangeTool();
-        }
-
         this.selectedOverlay = undefined
         this.events.emit('$overlay-select', {
             index: undefined,
@@ -96,36 +81,32 @@ class MetaHub {
         });
     }
 
+    changeToolData = ({id, data}) => {
+        const overlay = this.hub.data.panes[0].overlays.find(overlay => overlay.id === id);
+        overlay.data = data ?? [];
+
+        this.events.emit('commit-tool-changes');
+    }
+
     objectSelected = ({id}) => {
         this.selectedTool = id;
     }
 
     removeAllTools = () => {
-        const drawingOverlayIndexes = this.hub.data.panes[0].overlays.map((overlay, idx) => overlay.drawingTool ? idx : undefined).filter(Boolean);
-        if (drawingOverlayIndexes.length) {
-            this.hub.data.panes[0].overlays = this.hub.data.panes[0].overlays.filter((overlay, idx) => !drawingOverlayIndexes.includes(idx));
+        for (const drawingOverlay of this.hub.data.panes[0].overlays) {
+            if (drawingOverlay.drawingTool) {
+                drawingOverlay.data = [];
+                drawingOverlay.dataExt = {};
+            }
         }
-        this.selectedTool = undefined;
-        this.tool = undefined;
+
         this.drawingModeOff();
         this.events.emit('object-selected', {id: undefined});
         this.events.emitSpec('chart', 'update-layout');
         this.events.emit('commit-tool-changes');
-    }
 
-    removeTool = () => {
-        this.removeDrawingOverlayTool(this.selectedTool);
-        this.selectedTool = undefined;
-        this.tool = undefined;
-        this.drawingModeOff();
 
-        this.events.emit('object-selected', {id: undefined});
-        this.events.emitSpec('chart', 'update-layout');
-        this.events.emit('commit-tool-changes');
-    }
-
-    changeToolSettings = (event) => {
-        this.updateToolSettings(event);
+        console.log(this.hub.data.panes[0].overlays);
     }
 
     drawingModeOff = () => {
@@ -134,57 +115,7 @@ class MetaHub {
     }
 
     toolSelected = (event) => {
-        if (event.type === 'RangeTool') {
-            this.removeRangeTool();
-        }
-
         this.tool = event.type;
-    }
-
-    buildTool = (props = {}) => {
-        this.hub.data.panes[0].overlays.push({
-            name: this.tool + Math.random(),
-            type: this.tool,
-            id: Math.random(),
-            drawingTool: true,
-            data: [[]],
-            props: props,
-            settings: {
-                zIndex: 0
-            }
-        });
-        this.selectedTool = this.hub.data.panes[0].overlays[this.hub.data.panes[0].overlays.length - 1].id;
-    }
-
-    updateToolSettings = ({id, pins}) => {
-        const toolIdx = this.hub.data.panes[0].overlays.findIndex((overlay) => overlay.id === id);
-        if (toolIdx !== -1) {
-            this.hub.data.panes[0].overlays[toolIdx].props = {
-                ...this.hub.data.panes[0].overlays[toolIdx].props,
-                pins
-            };
-        }
-
-        this.events.emit('commit-tool-changes');
-    }
-
-    removeDrawingOverlayTool = (toolId) => {
-        const drawingOverlayIdx = this.hub.data.panes[0].overlays.findIndex((overlay) => toolId === overlay.id);
-        if (drawingOverlayIdx !== -1) {
-            this.hub.data.panes[0].overlays.splice(drawingOverlayIdx, 1);
-        }
-        this.events.emit('commit-tool-changes');
-    }
-
-    removeRangeTool = () => {
-        const drawingOverlayIndexes = this.hub.data.panes[0].overlays.map((overlay, idx) => overlay.type === 'RangeTool' ? idx : undefined).filter(Boolean);
-        if (drawingOverlayIndexes.length) {
-            this.hub.data.panes[0].overlays = this.hub.data.panes[0].overlays.filter((overlay, idx) => !drawingOverlayIndexes.includes(idx));
-        }
-
-        this.selectedTool = undefined;
-        this.tool = undefined;
-        this.drawingModeOff();
     }
 
     // Extract meta functions from overlay

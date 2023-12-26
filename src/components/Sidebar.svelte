@@ -1,107 +1,112 @@
 <script>
-// The Side Bar. Information flow:
-// Input: props, layout, mouse/touch events
-// Output: canvas, ytransform events
+    // The Side Bar. Information flow:
+    // Input: props, layout, mouse/touch events
+    // Output: canvas, ytransform events
 
-// TODO: right-click menu
-// - Reset this scale
-// - Reset All Scales
-// - Move ...
+    // TODO: right-click menu
+    // - Reset this scale
+    // - Reset All Scales
+    // - Move ...
 
-// TODO: add support of overlays with
-// drawSidebar() function
+    // TODO: add support of overlays with
+    // drawSidebar() function
 
-// TODO: hiver hint component (e.g. for sidebar errors)
+    // TODO: hiver hint component (e.g. for sidebar errors)
 
-import { onMount, onDestroy } from 'svelte'
-import { fade } from 'svelte/transition'
-import ScaleSelector from './ScaleSelector.svelte'
-import Events from '../core/events.js'
-import Utils from '../stuff/utils.js'
-import Const from '../stuff/constants.js'
-import math from '../stuff/math.js'
-import dpr from '../stuff/dprCanvas.js'
-import sb from '../core/primitives/sidebar.js'
-import MetaHub from '../core/metaHub.js'
+    import {onMount, onDestroy} from 'svelte'
+    import {fade} from 'svelte/transition'
+    import ScaleSelector from './ScaleSelector.svelte'
+    import Events from '../core/events.js'
+    import Utils from '../stuff/utils.js'
+    import Const from '../stuff/constants.js'
+    import math from '../stuff/math.js'
+    import dpr from '../stuff/dprCanvas.js'
+    import sb from '../core/primitives/sidebar.js'
+    import MetaHub from '../core/metaHub.js'
 
-export let id // Sidebar id (=pane/grid id)
-export let props = {} // General props
-export let layout = {} // Grid layout
-export let side // Left/right side
-export let scales = [] // List of scales
+    export let id // Sidebar id (=pane/grid id)
+    export let props = {} // General props
+    export let layout = {} // Grid layout
+    export let side // Left/right side
+    export let scales = [] // List of scales
 
-let layers = []
-export function setLayers($layers) {
-    layers = $layers
-}
+    let layers = []
 
-let meta = MetaHub.instance(props.id)
-let events = Events.instance(props.id)
+    export function setLayers($layers) {
+        layers = $layers
+    }
 
-let S = side === 'right' ? 1 : 0
+    let meta = MetaHub.instance(props.id)
+    let events = Events.instance(props.id)
 
-let sbUpdId = `sb-${id}-${side}`
-let sbId = `${props.id}-sb-${id}-${side}`
-let canvasId = `${props.id}-sb-canvas-${id}-${side}`
-let showSwitch = false
-let showPanel = true
+    let S = side === 'right' ? 1 : 0
 
-// EVENT INTERFACE
-events.on(`${sbUpdId}:update-sb`, update)
-events.on(`${sbUpdId}:show-sb-panel`, f => showPanel = f)
+    let sbUpdId = `sb-${id}-${side}`
+    let sbId = `${props.id}-sb-${id}-${side}`
+    let canvasId = `${props.id}-sb-canvas-${id}-${side}`
+    let showSwitch = false
+    let showPanel = true
 
-$:sbStyle = `
+    // EVENT INTERFACE
+    events.on(`${sbUpdId}:update-sb`, update)
+    events.on(`${sbUpdId}:show-sb-panel`, f => showPanel = f)
+
+    $:sbStyle = `
     left: ${S * (layout.width + layout.sbMax[0] + props.offset)}px;
     top: ${layout.offset || 0}px;
     position: absolute;
     background: ${props.colors.back};
     height: ${layout.height}px;
+    z-index: 1;
 `
-$:scale = getCurrentScale(layout)
+    $:scale = getCurrentScale(layout)
 
-let canvas // Canvas ref
-let ctx // Canvas context
-let mc // Mouse controller
-let zoom = 1
-let yRange
-let drug
-let updId 
+    let canvas // Canvas ref
+    let ctx // Canvas context
+    let mc // Mouse controller
+    let zoom = 1
+    let yRange
+    let drug
+    let updId
 
-$:width = layout.width
-$:height = layout.height
-$:resizeWatch(width, height)
+    $:width = layout.width
+    $:height = layout.height
+    $:resizeWatch(width, height)
 
-onMount(async () => { await setup() })
-onDestroy(() => {
-    events.off(`${sbUpdId}`)
-    if (mc) mc.destroy()
-    clearInterval(updId)
-})
+    onMount(async () => {
+        await setup()
+    })
+    onDestroy(() => {
+        events.off(`${sbUpdId}`)
+        if (mc) mc.destroy()
+        clearInterval(updId)
+    })
 
-async function setup() {
-    [canvas, ctx] = dpr.setup(
-        canvasId, layout.sbMax[S], layout.height)
+    async function setup() {
+        [canvas, ctx] = dpr.setup(
+            canvasId, layout.sbMax[S], layout.height)
 
-    update()
-    if (scale) await listeners()
+        update()
+        if (scale) await listeners()
 
-    // Start updates to show fresh candle time 
-    if (props.config.CANDLE_TIME && props.timeFrame >= Const.MINUTE) {
-        let dt = Const.SECOND / 5 
-        updId = setInterval(update, dt)
+        // Start updates to show fresh candle time
+        if (props.config.CANDLE_TIME && props.timeFrame >= Const.MINUTE) {
+            let dt = Const.SECOND / 5
+            updId = setInterval(update, dt)
+        }
     }
-}
 
-// TODO: add mouse wheel/touchpad zoom
-async function listeners() {
-    const Hammer = await import('hammerjs');
-    mc = new Hammer.Manager(canvas)
+    // TODO: add mouse wheel/touchpad zoom
+    async function listeners() {
+        const Hammer = await import('hammerjs');
+
+        mc = new Hammer.Manager(canvas)
         mc.add(new Hammer.Pan({
             direction: Hammer.DIRECTION_VERTICAL,
             threshold: 0
         }))
 
-        mc.add( new Hammer.Tap({
+        mc.add(new Hammer.Tap({
             event: 'doubletap',
             taps: 2,
             posThreshold: 50
@@ -121,6 +126,7 @@ async function listeners() {
             ]
             drug = {
                 y: event.center.y,
+                x: event.center.x,
                 z: zoom,
                 mid: math.log_mid(yRange, layout.height),
                 A: scale.A,
@@ -130,13 +136,14 @@ async function listeners() {
 
         mc.on('panmove', event => {
             if (drug) {
-                zoom = calcZoom(event)
+                zoom = calcZoom(event);
+                const range = calcRange();
                 events.emit('sidebar-transform', {
                     gridId: id,
                     scaleId: scale.scaleSpecs.id,
                     zoom: zoom,
                     auto: false,
-                    range: calcRange(),
+                    range,
                     drugging: true,
                     updateLayout: true
                 })
@@ -156,7 +163,6 @@ async function listeners() {
         })
 
         mc.on('doubletap', () => {
-            console.log(scale.scaleSpecs.id);
             events.emit('sidebar-transform', {
                 gridId: id,
                 scaleId: scale.scaleSpecs.id,
@@ -170,37 +176,37 @@ async function listeners() {
 
         // TODO: Do later for mobile version
 
-}
-
-function update($layout = layout) {
-
-    if (!$layout) return // If not exists
-
-    layout = $layout
-    //scales = Utils.getScalesBySide(S, layout)
-    scale = getCurrentScale()
-
-    if (!scale) {
-        return sb.error(props, layout, side, ctx)
     }
 
-    // Draw only when data extracted from the srcipts
-    //if (meta.ready) {
+    function update($layout = layout) {
+
+        if (!$layout) return // If not exists
+
+        layout = $layout
+        //scales = Utils.getScalesBySide(S, layout)
+        scale = getCurrentScale()
+
+        if (!scale) {
+            return sb.error(props, layout, side, ctx)
+        }
+
+        // Draw only when data extracted from the srcipts
+        //if (meta.ready) {
         sb.body(props, layout, scale, side, ctx)
-    //} else {
-    //    sb.border(props, layout, side, ctx)
-    //}
+        //} else {
+        //    sb.border(props, layout, side, ctx)
+        //}
 
-    ovDrawCalls()
+        ovDrawCalls()
 
-    if (id) sb.upperBorder(props, layout, ctx)
+        if (id) sb.upperBorder(props, layout, ctx)
 
-    if (props.cursor.y && props.cursor.scales && showPanel) {
-        if (props.cursor.gridId === layout.id) {
-            sb.panel(props, layout, scale, side, ctx)
+        if (props.cursor.y && props.cursor.scales && showPanel) {
+            if (props.cursor.gridId === layout.id) {
+                sb.panel(props, layout, scale, side, ctx)
+            }
         }
     }
-}
 
 // Draw stuff from overlay scripts
 function ovDrawCalls() {

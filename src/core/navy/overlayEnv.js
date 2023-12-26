@@ -27,6 +27,7 @@ import Pin from '../primitives/navyLib/pin.js'
 import {
     fastSma, candleColor, rescaleFont
 } from '../primitives/navyLib/helperFns.js'
+import Ray from "../primitives/navyLib/ray.js";
 
 const formatCash = Utils.formatCash
 
@@ -59,7 +60,7 @@ export default class OverlayEnv {
             candleBody, candleWick, volumeBar,
             fastSma, avgVolume, candleColor, 
             roundRect, rescaleFont, drawArrow, 
-            TrendLine, Segment, Pin,
+            TrendLine, Segment, Pin, Ray,
             Utils
         }
 

@@ -203,7 +203,7 @@ export default {
         if (abs > 500) {
             return (200 + Math.log(abs)) * Math.sign(delta)
         }
-        return delta
+        return delta * 3
     },
 
     // Parse the original mouse event to find deltaX

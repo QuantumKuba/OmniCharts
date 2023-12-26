@@ -35,6 +35,11 @@ $:rrStyle = `
     position: absolute;
     height: ${layout.height}px;
 }`
+$:canvasStyle = `
+    position: relative;
+    z-index:1;
+    background: ${layout.main ? 'transparent' :  props.colors.back};
+`;
 $:width = layout.width
 $:height = layout.height
 $:resizeWatch(width, height)
@@ -136,5 +141,5 @@ function resizeWatch() {
 </style>
 <div id={rrId} style={rrStyle}
     class="nvjs-canvas-rendrer">
-    <canvas id={canvasId}></canvas>
+    <canvas style="{canvasStyle}" id={canvasId}></canvas>
 </div>

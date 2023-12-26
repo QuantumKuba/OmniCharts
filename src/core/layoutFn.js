@@ -8,7 +8,7 @@ const HPX = Const.HPX
 
 // If `overlay` provided, that means this is an
 // overlay-specific layout-api
-export default function(self, range, overlay = null) {
+export default function (self, range, overlay = null) {
 
     //const ib = self.tiMap.ib
     const dt = range[1] - range[0]
@@ -30,14 +30,24 @@ export default function(self, range, overlay = null) {
             let src = self.indexBased ? (i + offset) : t
             return Math.floor((src - range[0]) * r) + HPX
         },
+        ti2xWithoutRound: (t, i) => {
+            let src = self.indexBased ? (i + offset) : t
+            return (src - range[0]) * r + HPX
+        },
         // Time to screen x-coordinates
-        time2x: t => {
-            return Math.floor((t - range[0]) * r) + HPX
+        time2x: (t, round = true) => {
+            if (round) {
+                return Math.floor((t - range[0]) * r) + HPX
+            }
+            return (t - range[0]) * r + HPX
         },
         // Price/value to screen y-coordinates
-        value2y: y => {
+        value2y: (y, round = true) => {
             if (ls) y = math.log(y)
-            return Math.floor(y * self.A + self.B) + HPX
+            if (round) {
+                return Math.floor(y * self.A + self.B) + HPX
+            }
+            return y * self.A + self.B + HPX
         },
         // Time-axis nearest step
         tMagnet: t => {
@@ -65,7 +75,8 @@ export default function(self, range, overlay = null) {
             return range[0] + x / r
         },
         // $-axis nearest step
-        $magnet: price => { },
+        $magnet: price => {
+        },
         // Nearest candlestick
         cMagnet: t => {
             const cn = self.candles || self.master_grid.candles
@@ -74,7 +85,8 @@ export default function(self, range, overlay = null) {
             return cn[i]
         },
         // Nearest data points
-        dataMagnet: t => {  /* TODO: implement */ }
+        dataMagnet: t => {  /* TODO: implement */
+        }
     })
 
     return self

@@ -100,13 +100,12 @@ function destroyLayers() {
     }
 }
 
-const initedOverlays = [];
-
 // Take data + scripts and form new layers
 function makeLayers() {
-
     let list = hub.panes()[id].overlays || []
     let layers = []
+
+    const main = id === 0;
 
     for (var i = 0; i < list.length; i++) {
         let ov = list[i]
@@ -131,10 +130,6 @@ function makeLayers() {
         layers.push(l)
 
         l.overlay.init();
-        // if (!initedOverlays.includes(l.id)) {
-        //     l.overlay.init();
-        // }
-        // initedOverlays.push(l.id);
     }
 
     // TODO: make crosshair customizable
@@ -143,6 +138,10 @@ function makeLayers() {
     layers.push(new Crosshair(i++, props.id))
     layers.push(new Grid(i++, props.id))
     layers.push(new Trackers(i++, props, id))
+    // layers.push(new Heatmap(i++, props.id));
+    // if (main) {
+    //     layers.push(new Heatmap(i++, props.id))
+    // }
     layers.sort((l1, l2) => l1.zIndex - l2.zIndex)
 
     // Submit meta-info to the hub (yRanges ...)
@@ -192,6 +191,10 @@ function update($layout = layout) {
     for (var rr of renderers) {
         events.emitSpec(`rr-${id}-${rr.id}`,
             'update-rr', layout)
+    }
+
+    if (meta.heatmap) {
+        meta.heatmap.layoutUpdate({layout, props});
     }
 }
 

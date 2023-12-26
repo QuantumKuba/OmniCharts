@@ -1,29 +1,15 @@
 // Navy ~ 0.2-lite
 // <ds>Time & value measurment tool [Shift+Click]</ds>
 
-[OVERLAY name = RangeTool, ctx = Canvas, verion = 1.0.1, author = GPT4]
+[OVERLAY name=RangeTool, ctx=Canvas, verion=1.0.1, author=GPT4]
 
-let pin1 = null;
-let pin2 = null;
-let shift = false;
-let state = 'idle';
+let pin1 = null
+let pin2 = null
+let shift = false
+let state = 'idle'
 
-prop('shiftMode', {type: 'boolean', def: false});
-prop('initYPos', {type: 'number', def: undefined});
-
-function init() {
-    if ($props.initYPos) {
-        pin1 = {
-            t: $core.cursor.time,
-            v: $core.layout.y2value($props.initYPos)
-        }
-        pin2 = {...pin1};
-        state = 'drawing';
-        $events.emitSpec('chart', 'update-layout');
-    }
-}
-
-function draw(ctx) {
+// TODO: fix for index-based
+draw(ctx) {
     const layout = $core.layout
 
     if (pin1 && pin2) {
@@ -73,7 +59,7 @@ function draw(ctx) {
 // Calculate the percentage of the are between pins v-values
 // assuming that pin2 is above pin1 equals positive value
 // and negative otherwise
-function percent() {
+percent() {
     if (pin1 && pin2) {
         let delta = pin2.v - pin1.v;
         return (delta / pin1.v) * 100;
@@ -84,7 +70,7 @@ function percent() {
 // Calculate delta time between pins t-values
 // assuming that pin2 on the right of pin1 equals positive value
 // and negative otherwise
-function deltaTime() {
+deltaTime() {
     if (pin1 && pin2) {
         return pin2.t - pin1.t
     }
@@ -94,7 +80,7 @@ function deltaTime() {
 // Calculate delta value between pins v-values
 // assuming that pin2 is above pin1 equals positive value
 // and negative otherwise
-function deltaValue() {
+deltaValue() {
     if (pin1 && pin2) {
         return pin2.v - pin1.v
     }
@@ -102,7 +88,7 @@ function deltaValue() {
 }
 
 // Delta time in bars
-function bars() {
+bars() {
     let data = $core.hub.mainOv.dataSubset
     if (pin1 && pin2) {
         const layout = $core.layout
@@ -116,7 +102,7 @@ function bars() {
 }
 
 // Delta time in text format
-function timeText() {
+timeText() {
     let deltaTimeMs = deltaTime();  // returns delta time in milliseconds
     let timeFrameMs = $core.props.timeFrame;  // returns current chart timeframe in milliseconds
 
@@ -142,43 +128,54 @@ function timeText() {
 }
 
 
-function keydown(event) {
+
+keydown(event) {
     if (event.key === 'Shift') {
         shift = true
     }
 }
 
-function keyup(event) {
+keyup(event) {
     if (event.key === 'Shift') {
         shift = false
     }
 }
 
-function mousedown(event) {
+mouseout(event) {
+    if (event.which === 2) {
+        shift = false
+    }
+}
+
+mousedown(event) {
+    if ($core.meta.tool === 'RangeTool' || event.which === 2) {
+        shift = true;
+    }
+
     const layout = $core.layout
-    if (state === 'idle' || shift) {
-        // Create the first pin 
+    if (state === 'idle' && shift) {
+        // Create the first pin
         pin1 = {
             t: $core.cursor.time,
             v: layout.y2value(event.layerY)
         }
-        pin2 = {...pin1}
+        pin2 = { ...pin1 }
         state = 'drawing'
     } else if (state === 'drawing') {
         state = 'finished'
-        $events.emit('drawing-mode-off', {});
     } else if (state === 'finished') {
         state = 'idle'
         pin1 = null
         pin2 = null
+        shift = false;
     }
     $events.emitSpec('chart', 'update-layout')
 }
 
-function mousemove(event) {
+mousemove(event) {
     if (state === 'drawing') {
         const layout = $core.layout
-        // Create the second pin 
+        // Create the second pin
         pin2 = {
             t: $core.cursor.time,
             v: layout.y2value(event.layerY)
@@ -187,6 +184,4 @@ function mousemove(event) {
 }
 
 // Disable legend by returning null
-function legend() {
-    return void 0;
-}
+legend() => null

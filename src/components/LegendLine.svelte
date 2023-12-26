@@ -163,6 +163,7 @@
         margin-bottom: 2px;
         width: fit-content;
         display: flex;
+        z-index: 10;
     }
 
     .nvjs-logo {

@@ -1,13 +1,19 @@
 // Navy ~ 0.2-lite
 // <ds>Drawing lines [Tap + Hold]</ds>
 
-[OVERLAY name=LineTool, ctx=Canvas, verion=1.0.0]
+[OVERLAY name = LineTool, ctx = Canvas, verion = 1.0.0]
+
+prop('color', {type: 'string', def: '#dc9800'});
+prop('lineWidth', {type: 'number', def: 1});
 
 let timeId = null
 let mouseX = 0
 let lines = {} // Line objects stored by uuid
 
-init() {
+init()
+{
+    $core.dataExt.lines = $core.data;
+
     // Restore lines from dataExt
     for (var line of $core.dataExt.lines || []) {
         lines[line.uuid] = new $lib.TrendLine($core, line)
@@ -15,13 +21,19 @@ init() {
     }
 }
 
-draw(ctx) {
+draw(ctx)
+{
+    if (!$core.dataExt.lines?.length && lines) {
+        Object.values(lines).forEach(x => removeLine(x.data.uuid))
+    }
+
     for (var line of Object.values(lines)) {
         line.draw(ctx)
     }
 }
 
-newLine() {
+newLine()
+{
 
     if (unfinishedLines() || mouseMoved()) return
 
@@ -32,11 +44,13 @@ newLine() {
     let t = $core.cursor.time
     let $ = $core.layout.y2value($core.cursor.y)
     let uuid = $lib.Utils.uuid3()
-    
+
     let line = {
         type: 'segment',
         p1: [t, $],
         p2: [t, $],
+        lineWidth: $props.lineWidth,
+        color: $props.color,
         uuid: uuid
     }
     $core.dataExt.lines.push(line)
@@ -45,18 +59,33 @@ newLine() {
     lines[uuid].selected = true
 
     $events.emit('scroll-lock', true)
-    $events.emit('update-layout')
+    $events.emit('update-layout');
 
+    $events.emit('change-tool-data', {
+        data: $core.dataExt.lines,
+        id: $core.id
+    });
 }
 
-lineSelected($uuid) {
-    for (var uuid in lines) {
-        lines[uuid].selected = uuid === $uuid
+lineSelected($uuid)
+{
+    if (!$uuid) {
+        $events.emit('object-selected', {id: undefined, type: undefined});
     }
+
+    for (var uuid in lines) {
+        const selected = uuid === $uuid;
+        lines[uuid].selected = selected;
+        if (selected) {
+            $events.emit('object-selected', {id: uuid, type: 'LineTool'});
+        }
+    }
+
     $events.emit('update-layout')
 }
 
-unfinishedLines() {
+unfinishedLines()
+{
     for (var line of Object.values(lines)) {
         if (line.pins.some(x => x.state !== 'settled')) {
             return true
@@ -65,47 +94,72 @@ unfinishedLines() {
     return false
 }
 
-mouseMoved() {
+mouseMoved()
+{
     let d = Math.abs(mouseX - $core.mouse.x)
     return d > 5
 }
 
-removeLine(uuid) {
+removeLine(uuid)
+{
     delete lines[uuid]
-    $core.dataExt.lines.filter(x => x.uuid !== uuid)
+    $core.dataExt.lines = $core.dataExt.lines?.filter(x => x.uuid !== uuid) ?? [];
     $events.emit('update-layout')
+
+    $events.emit('change-tool-data', {
+        data: $core.dataExt.lines,
+        id: $core.id
+    });
+    $events.emit('object-selected', {id: undefined, type: undefined});
 }
 
-propagate(name, data) {
+propagate(name, data)
+{
     // TODO: sort by z-index
     for (var line of Object.values(lines)) {
         line[name](data)
     }
-} 
+}
 
-mousedown(event) {
-    timeId = setTimeout(newLine, 1000)
+mousedown(event)
+{
+    const timeout = $core.meta.tool === 'LineTool' ? 0 : 750
+    timeId = setTimeout(newLine, timeout)
     mouseX = $core.mouse.x
     lineSelected(null)
     $events.emit('update-layout')
     propagate('mousedown', event)
 }
 
-mouseup(event) {
+mouseup(event)
+{
     clearTimeout(timeId)
     timeId = null
     propagate('mouseup', event)
+    $events.emit('drawing-mode-off');
+
+    let s = Object.values(lines).find(x => x.selected);
+    if (s) {
+        $events.emit('change-tool-data', {
+            data: $core.dataExt.lines,
+            id: $core.id
+        });
+    }
 }
 
-mousemove(event) {
+mousemove(event)
+{
     propagate('mousemove', event)
 }
 
-keydown(event) {
-    if (event.code === 'Backspace') {
+keydown(event)
+{
+    if (event.code === 'Backspace' || event.code === 'Delete') {
         let s = Object.values(lines).find(x => x.selected)
         if (s) removeLine(s.data.uuid)
     }
 }
 
-legend() => null
+legend()
+=>
+null
