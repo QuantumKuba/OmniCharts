@@ -340,10 +340,32 @@ export default class Input {
                 gridId: this.gridId, z, diff1, diff2
             })
         }
+
+        // NEED TO IMPLEMENT
+        // let scaleId = this.layout.scaleIndex;
+        // let yTransform = this.meta.getYtransform(this.gridId, scaleId);
+        // if (yTransform && !yTransform.auto) {
+        //     let offset = event.originalEvent.offsetY;
+        //     let canvasHeight = this.canvas.height / dpr;
+        //     let diff1 = offset / (canvasHeight - 1) * 2;
+        //     let diff2 = 2 - diff1;
+        //     let z = diff1 / (yTransform.range[1] - yTransform.range[0]);
+        //
+        //     console.log(event.deltaY);
+        //
+        //     this.events.emit('sidebar-transform', {
+        //         gridId: this.gridId,
+        //         scaleId: scaleId,
+        //         range: [
+        //             event.deltaY < 0 ? yTransform.range[0] - 0.1 : yTransform.range[0] + 0.1,
+        //             event.deltaY < 0 ? yTransform.range[1] + 0.1 : yTransform.range[1] - 0.1
+        //         ]
+        //     })
+        // }
+
         // TODO: fix doulbe updates (only on120hz macbook)
         /*if (!updated)*/
         this.changeRange()
-
     }
 
     mousedrag(x, y) {

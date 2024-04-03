@@ -24,8 +24,23 @@ draw(ctx)
         Object.values(lines).forEach(x => removeLine(x.data.uuid))
     }
 
+    const currentPrice = $core.hub?.mainOv?.data?.[$core.hub.mainOv.data.length - 1]?.[4] ?? 0;
+
     for (var line of Object.values(lines)) {
         line.draw(ctx)
+        const lineData = line.line;
+
+        // Draw text
+        ctx.font = '10px Quantico';
+        ctx.fillStyle = '#b98200';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        if (line.pins[0].y$ > currentPrice) {
+            ctx.fillText(line.pins[0].y$.toFixed($core.layout.prec), lineData.x1, lineData.y1 - 10);
+        } else {
+            ctx.fillText(line.pins[0].y$.toFixed($core.layout.prec), lineData.x1, lineData.y1 + 10);
+        }
     }
 }
 
@@ -151,6 +166,32 @@ keydown(event)
         let s = Object.values(lines).find(x => x.selected)
         if (s) removeLine(s.data.uuid)
     }
+}
+
+let initialLow = 0;
+let initialHigh = 0;
+yRange(data, a, low)
+{
+    const updData = $core.data.slice(-500);
+    let len = updData.length;
+
+    var h, l, high = -Infinity, low = Infinity
+    if (initialLow && initialHigh) {
+        low = initialLow;
+        high = initialHigh;
+    } else {
+        for (var i = 0; i < len; i++) {
+            let point = updData[i];
+            if (!point) {
+                break;
+            }
+            if (point[2] > high) high = point[2];
+            if (point[3] < low) low = point[3];
+        }
+        initialLow = low;
+        initialHigh = high;
+    }
+    return [high, low]
 }
 
 legend()

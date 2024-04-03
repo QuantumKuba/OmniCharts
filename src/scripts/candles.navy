@@ -4,6 +4,8 @@
 // <ds>Standart japanese candles</ds>, format:
 // [<timestamp>, <open>, <high>, <low>, <close>, <?volume>]
 
+import candleBodyTransparent from "../core/primitives/navyLib/candleBodyTransparent.js";
+
 [OVERLAY name=Candles, ctx=Canvas, version=1.0.0]
 
 // Define the props
@@ -35,6 +37,8 @@ draw(ctx) {
     drawCvPart(ctx, $lib.candleWick, cnv.upWicks, 1, 'colorWickUp')
     drawCvPart(ctx, $lib.candleBody, cnv.dwBodies, w, 'colorBodyDw')
     drawCvPart(ctx, $lib.candleBody, cnv.upBodies, w, 'colorBodyUp')
+    drawCvPart(ctx, $lib.candleBodyTransparent, cnv.dwBodies, w, 'colorBodyDw')
+    drawCvPart(ctx, $lib.candleBodyTransparent, cnv.upBodies, w, 'colorBodyUp')
     drawCvPart(ctx, $lib.volumeBar, cnv.dwVolbars, w, 'colorVolDw')
     drawCvPart(ctx, $lib.volumeBar, cnv.upVolbars, w, 'colorVolUp')
 
@@ -51,7 +55,7 @@ drawCvPart(ctx, f, arr, w, color) {
     ctx.strokeStyle = $props[color]
     ctx.beginPath()
     for (var i = 0, n = arr.length; i < n; i++) {
-        f(ctx, arr[i], layout)
+        f(ctx, arr[i], layout, w)
     }
     ctx.stroke()
 }

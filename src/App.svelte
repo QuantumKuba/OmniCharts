@@ -66,7 +66,7 @@
             id: 'test',
             config: {
                 ZOOM_MODE: 'tl',
-                SCROLL_WHEEL: 'pass',
+                SCROLL_WHEEL: 'prevent',
                 scrollLock: true,
                 SBMAX: 500,
                 DEFAULT_LEN: 150,

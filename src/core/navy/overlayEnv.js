@@ -1,4 +1,3 @@
-
 // Object that contains all pre-set variables for
 // overlay-maker function
 
@@ -24,10 +23,9 @@ import drawArrow from '../primitives/navyLib/arrow.js'
 import TrendLine from '../primitives/navyLib/trendLine.js'
 import Segment from '../primitives/navyLib/seg.js'
 import Pin from '../primitives/navyLib/pin.js'
-import {
-    fastSma, candleColor, rescaleFont
-} from '../primitives/navyLib/helperFns.js'
+import {candleColor, fastSma, rescaleFont} from '../primitives/navyLib/helperFns.js'
 import Ray from "../primitives/navyLib/ray.js";
+import candleBodyTransparent from "../primitives/navyLib/candleBodyTransparent.js";
 
 const formatCash = Utils.formatCash
 
@@ -46,7 +44,7 @@ export default class OverlayEnv {
         this.id = id
         this.handlers = {}
 
-        this.$core = { hub, meta, scan, events }
+        this.$core = {hub, meta, scan, events}
         this.update(ovSrc, layout, props)
 
         this.$props = ovSrc.props
@@ -57,14 +55,14 @@ export default class OverlayEnv {
 
         this.lib = {
             Candle, Volbar, layoutCnv, formatCash,
-            candleBody, candleWick, volumeBar,
-            fastSma, avgVolume, candleColor, 
-            roundRect, rescaleFont, drawArrow, 
+            candleBody, candleBodyTransparent, candleWick, volumeBar,
+            fastSma, avgVolume, candleColor,
+            roundRect, rescaleFont, drawArrow,
             TrendLine, Segment, Pin, Ray,
             Utils
         }
 
-        this.$core.lib = this.lib 
+        this.$core.lib = this.lib
 
     }
 

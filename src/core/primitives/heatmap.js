@@ -30,7 +30,7 @@ export default class Heatmap {
             backgroundAlpha: 0,
             clearBeforeRender: true,
             antialias: false,
-            resizeTo: window,
+            resizeTo: window
         });
 
         this.heatmapApp.view.style.position = 'absolute';

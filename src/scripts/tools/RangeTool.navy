@@ -183,5 +183,31 @@ mousemove(event) {
     }
 }
 
+let initialLow = 0;
+let initialHigh = 0;
+yRange(data, a, low)
+{
+    const updData = $core.data.slice(-500);
+    let len = updData.length;
+
+    var h, l, high = -Infinity, low = Infinity
+    if (initialLow && initialHigh) {
+        low = initialLow;
+        high = initialHigh;
+    } else {
+        for (var i = 0; i < len; i++) {
+            let point = updData[i];
+            if (!point) {
+                break;
+            }
+            if (point[2] > high) high = point[2];
+            if (point[3] < low) low = point[3];
+        }
+        initialLow = low;
+        initialHigh = high;
+    }
+    return [high, low]
+}
+
 // Disable legend by returning null
 legend() => null

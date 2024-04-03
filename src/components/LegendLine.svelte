@@ -215,7 +215,7 @@
         filter: none;
     }*/
 </style>
-{#if !legendFns.noLegend && ov.settings.showLegend !== false}
+{#if !ov.drawingTool && !legendFns.noLegend && ov.settings.showLegend !== false}
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div class="nvjs-legend-line" {style}
          on:mousemove={onMouseMove}
@@ -234,7 +234,7 @@
             {/if}
         </span>
         {/if}
-        {#if display && !hover}
+        {#if !ov.drawingTool && display && !hover}
         <span class="nvjs-ll-data" style={dataStyle}>
             {#if ov.settings.legendHtml}
             {@html ov.settings.legendHtml}
@@ -262,14 +262,14 @@
             {/if}
         </span>
         {/if}
-        {#if !display && !hover}
+        {#if !ov.drawingTool && !display && !hover}
             <div class="legend-controls-container">
                 <div class="nvjs-action-icon-wrapper">
                     <div class="nvjs-action-icon" style={eyeStyle}></div>
                 </div>
             </div>
         {/if}
-        {#if hover}
+        {#if !ov.drawingTool && hover}
             <LegendControls bind:this={ctrlRef}
                             {gridId} {ov} {props}
                             height={boundary.height}/>
