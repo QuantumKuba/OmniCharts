@@ -31,7 +31,7 @@ draw(ctx) {
 
         // draw rounded rectangle with text
         const text1 = `${deltaValue().toFixed(2)} (${percent().toFixed(2)}%)`;
-        const text2 = `${bars()} bars, ${timeText()}`;
+        const text2 = `${bars()} баров, ${timeText()}`;
         const text = `${text1}\n${text2}`;
         const textWidth = ctx.measureText(text).width;
 
@@ -115,13 +115,13 @@ timeText() {
 
     let result = "";
     if (days > 0) {
-        result += days + "d ";
+        result += days + "д ";
     }
     if ((hours > 0 || days > 0) && hours !== 0) {
-        result += hours + "h ";
+        result += hours + "ч ";
     }
     if (minutes > 0 && timeFrameMs < 60 * 60 * 1000 && minutes !== 0) {
-        result += minutes + "m";
+        result += minutes + "м";
     }
 
     return (negative ? '-' : '') + result.trim();

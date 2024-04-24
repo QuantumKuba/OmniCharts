@@ -3,6 +3,8 @@
 
 [OVERLAY name = LineToolHorizontalRay, ctx = Canvas, verion = 1.0.0]
 
+prop('color', { type: 'Color', def: '#b98200' })
+
 let timeId = null
 let mouseX = 0
 let lines = {} // Line objects stored by uuid
@@ -32,7 +34,7 @@ draw(ctx)
 
         // Draw text
         ctx.font = '10px Quantico';
-        ctx.fillStyle = '#b98200';
+        ctx.fillStyle = $props.color;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
