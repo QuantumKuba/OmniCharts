@@ -66,9 +66,10 @@ export default class Input {
         let T = Utils.isMobile ? 10 : 0
         mc.add(new Hammer.Pan({threshold: T}))
         mc.add(new Hammer.Tap())
+        mc.add(new Hammer.Tap({ event: 'doubletap', taps: 2 }));
         mc.add(new Hammer.Pinch({threshold: 0}))
         mc.get('pinch').set({enable: true})
-        if (Utils.isMobile) mc.add(new Hammer.Press())
+        if (Utils.isMobile) mc.add(new Hammer.Press({}))
 
         mc.on('panstart', event => {
             if (this.cursor.scroll_lock) return
@@ -153,12 +154,23 @@ export default class Input {
         })
 
         mc.on('press', event => {
-            if (!Utils.isMobile) return
+            if (!Utils.isMobile) {
+                return
+            }
+
             if (this.fade) this.fade.stop()
             this.calcOffset()
             this.emitCursorCoord(event, {mode: 'aim'})
             setTimeout(() => this.events.emitSpec(this.rrId, 'update-rr'))
             this.simMousedown(event)
+
+            const cursor = this.props.cursor;
+            const yValue = this.layout.y2value(cursor.y);
+            this.events.emit('add-signal-level', {
+                gridId: this.id,
+                scaleId: this.layout.scaleSpecs.id,
+                yValue
+            });
         })
 
         // TODO: Add only once?
@@ -181,7 +193,7 @@ export default class Input {
     }
 
     mousemove(event) {
-        if (Utils.isMobile) return
+        // if (Utils.isMobile) return
         event = Utils.adjustMouse(event, this.canvas)
         this.events.emit('cursor-changed', {
             visible: true,

@@ -114,7 +114,6 @@ export default class Crosshair extends Layer {
             // const yValue = cursor.values[0][0][1];
             const yValue = this.layout.y2value(cursor.y);
             const events = this.events = Events.instance(this.props.id)
-
             events.emit('add-signal-level', {
                 gridId: this.id,
                 scaleId: this.layout.scaleSpecs.id,
