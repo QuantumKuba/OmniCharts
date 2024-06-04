@@ -99,11 +99,19 @@ export default class Input {
         })
 
         mc.on('panmove', event => {
+
             if (Utils.isMobile) {
                 this.calcOffset()
-                this.propagate('mousemove', this.touch2mouse(event))
+                this.events.emit('cursor-changed', {
+                    visible: true,
+                    gridId: this.gridId,
+                    x: event.layerX,
+                    y: event.layerY - 1 // Align with the crosshair
+                })
+                this.propagate('mousemove', event)
             }
             if (this.drug) {
+                this.panFade(event)
                 this.mousedrag(
                     this.drug.x + event.deltaX,
                     this.drug.y + event.deltaY,
@@ -113,15 +121,13 @@ export default class Input {
                     x: event.center.x + this.offsetX,
                     y: event.center.y + this.offsetY
                 })*/
-            } else if (this.cursor.mode === 'aim') {
+            } else if (this.cursor.mode === 'aim' && !Utils.isMobile) {
                 this.emitCursorCoord(event)
             }
+            console.log('panmove')
         })
 
         mc.on('panend', event => {
-            if (Utils.isMobile && this.drug) {
-                this.panFade(event)
-            }
             this.drug = null
             this.events.emit('cursor-locked', false)
         })
@@ -193,7 +199,7 @@ export default class Input {
     }
 
     mousemove(event) {
-        // if (Utils.isMobile) return
+        if (Utils.isMobile) return
         event = Utils.adjustMouse(event, this.canvas)
         this.events.emit('cursor-changed', {
             visible: true,
