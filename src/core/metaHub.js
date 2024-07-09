@@ -104,12 +104,12 @@ class MetaHub {
         this.events.emit('object-selected', {id: undefined});
         this.events.emitSpec('chart', 'update-layout');
         this.events.emit('commit-tool-changes');
-
-
-        console.log(this.hub.data.panes[0].overlays);
     }
 
     drawingModeOff = () => {
+        if (this.tool === 'Brush') {
+            return void 0;
+        }
         this.tool = 'Cursor';
         this.drawingMode = false;
     }

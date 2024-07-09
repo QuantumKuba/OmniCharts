@@ -67,6 +67,10 @@
     });
 
     events.on('toolbar:drawing-mode-off', () => {
+        if (selectedTool === 'Brush') {
+            return void 0;
+        }
+
         selectedTool = 'Cursor';
     });
 

@@ -31,8 +31,9 @@ export default class TrendLine {
         ctx.lineWidth = this.data.lineWidth ?? 1;
         ctx.strokeStyle = this.data.color ?? '#dc9800'
         ctx.beginPath()
-        this.line.draw(ctx)
-        ctx.stroke()
+        this.line.draw(ctx);
+        ctx.stroke();
+        ctx.closePath();
 
         if (this.hover || this.selected) {
             for (var pin of this.pins) {

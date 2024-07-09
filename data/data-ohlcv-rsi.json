@@ -33610,20 +33610,71 @@
           ],
           "settings": {},
           "props": {}
-        }
-      ]
-    },
-    {
-      "scripts": [
+        },
         {
-          "type": "RSI",
+          "name": "RangeTool",
+          "type": "RangeTool",
+          "drawingTool": true,
+          "data": [],
+          "props": {},
           "settings": {
-            "execOrder": 1,
-            "execOnRange": false,
-            "execInterval": 0
-          },
-          "props": {
-            "length": 14
+            "zIndex": 1000
+          }
+        },
+        {
+          "name": "Brush",
+          "type": "Brush",
+          "drawingTool": true,
+          "data": [],
+          "props": {},
+          "settings": {
+            "color": "red"
+          }
+        },
+        {
+          "name": "LineTool",
+          "type": "LineTool",
+          "drawingTool": true,
+          "data": [
+            {
+              "type": "segment",
+              "p1": [
+                1702108800000,
+                73.05794116151363
+              ],
+              "p2": [
+                1702296000000,
+                75.23011872310508
+              ],
+              "uuid": "6822450897812908",
+              "color": "#dc9800",
+              "lineWidth": "1"
+            }
+          ],
+          "props": {},
+          "settings": {
+            "zIndex": 1000
+          }
+        },
+        {
+          "name": "LineToolHorizontalRay",
+          "type": "LineToolHorizontalRay",
+          "drawingTool": true,
+          "data": [
+            {
+              "type": "ray",
+              "p1": [
+                1702108800000,
+                71.05794116151363
+              ],
+              "uuid": "123",
+              "color": "#dc9800",
+              "lineWidth": "1"
+            }
+          ],
+          "props": {},
+          "settings": {
+            "zIndex": 1000
           }
         }
       ]
@@ -33648,7 +33699,7 @@
     {
       "type": "LineToolHorizontalRay",
       "label": "Horizontal Ray (Right Click)",
-      "group": "LineTool",
+      "group": "LineToolHorizontalRay",
       "icon": "<svg fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\" height=\"24\" viewBox=\"0 -960 960 960\" width=\"24\"><path d=\"M180-380q-42 0-71-29t-29-71q0-42 29-71t71-29q31 0 56 17t36 43h608v80H272q-11 26-36 43t-56 17Z\"/></svg>\n"
     },
     {

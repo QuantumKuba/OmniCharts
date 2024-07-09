@@ -19,7 +19,7 @@ export default class Pin {
         this.line = line
         this.data = line.data
         this.name = name
-        this.state = params.state || 'settled'
+        this.state = params.state || 'settled';
         this.hidden = params.hidden || false
         this.mouse = this.core.mouse
 

@@ -34,16 +34,15 @@ draw(ctx)
 
 newLine()
 {
-
     if (unfinishedLines() || mouseMoved()) return
 
     if (!$core.dataExt.lines) {
         $core.dataExt.lines = []
     }
 
-    let t = $core.cursor.time
-    let $ = $core.layout.y2value($core.cursor.y)
-    let uuid = $lib.Utils.uuid3()
+    let t = $core.cursor.time;
+    let $ = $core.layout.y2value($core.cursor.y);
+    let uuid = $lib.Utils.uuid3();
 
     let line = {
         type: 'segment',
@@ -58,7 +57,7 @@ newLine()
     lines[uuid].onSelect = lineSelected
     lines[uuid].selected = true
 
-    $events.emit('scroll-lock', true)
+    $events.emit('scroll-lock', true);
     $events.emit('update-layout');
 
     $events.emit('change-tool-data', {
@@ -69,6 +68,7 @@ newLine()
 
 lineSelected($uuid)
 {
+
     if (!$uuid) {
         $events.emit('object-selected', {id: undefined, type: undefined});
     }
@@ -115,7 +115,6 @@ removeLine(uuid)
 
 propagate(name, data)
 {
-    // TODO: sort by z-index
     for (var line of Object.values(lines)) {
         line[name](data)
     }
@@ -123,7 +122,7 @@ propagate(name, data)
 
 mousedown(event)
 {
-    const timeout = $core.meta.tool === 'LineTool' ? 0 : 50000
+    const timeout = $core.meta.tool === 'LineTool' ? 0 : 50000;
     timeId = setTimeout(newLine, timeout)
     mouseX = $core.mouse.x
     lineSelected(null)

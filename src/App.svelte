@@ -5,8 +5,8 @@
     import.meta.hot
     import {NightVision} from './index.js'
     import {onMount} from 'svelte'
-    import data from '../data/data-ohlcv.json?id=main'
-    // import data from '../data/data-ohlcv-rsi.json?id=main'
+    // import data from '../data/data-ohlcv.json?id=main'
+    import data from '../data/data-ohlcv-rsi.json?id=main'
     import data2 from '../data/data-area.json?id=main-2'
     // import data3 from '../data/data-aapl.json?id=main-3'
     import TestStack from '../tests/testStack.js'
