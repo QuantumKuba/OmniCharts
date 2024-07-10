@@ -12,10 +12,9 @@ let brushes = {}
 function init() {
     $core.dataExt.brushes = $core.data;
 
-
-    for (const point of $core.dataExt.brushes || []) {
-        brushes[line.uuid] = new $lib.Brush($core, point);
-        brushes[line.uuid].onSelect = brushSelected;
+    for (const brush of $core.dataExt.brushes || []) {
+        brushes[brush.uuid] = new $lib.Brush($core, brush);
+        brushes[brush.uuid].onSelect = brushSelected;
     }
 }
 
