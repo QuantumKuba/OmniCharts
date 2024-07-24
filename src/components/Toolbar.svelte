@@ -63,11 +63,20 @@
     `;
 
     events.on('toolbar:tool-selected', (event) => {
+        if (event.type === selectedTool) {
+            selectedTool = undefined;
+            return void 0;
+        }
+
         selectedTool = event.type;
     });
 
     events.on('toolbar:drawing-mode-off', () => {
         if (selectedTool === 'Brush') {
+            return void 0;
+        }
+
+        if (selectedTool === 'Magnet') {
             return void 0;
         }
 

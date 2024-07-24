@@ -1,10 +1,8 @@
 // Container for y-transforms, meta functions, other info
 // about overlays (e.g. yRange)
 
-import Utils from '../stuff/utils.js'
 import Events from './events.js'
 import DataHub from './dataHub.js'
-import Keys from "../stuff/keys.js";
 import Heatmap from "./primitives/heatmap.js";
 
 class MetaHub {
@@ -25,6 +23,8 @@ class MetaHub {
         events.on('meta:change-tool-data', this.changeToolData.bind(this));
         events.on('meta:object-selected', this.objectSelected.bind(this));
         events.on('meta:remove-all-tools', this.removeAllTools.bind(this));
+        events.on('meta:keyboard-keydown', this.handleKeyboardDown.bind(this));
+        events.on('meta:keyboard-keyup', this.handleKeyboardUp.bind(this));
 
         // Persistent meta storage
         this.storage = {};
@@ -33,6 +33,7 @@ class MetaHub {
         this.tool = 'Cursor';
         this.drawingMode = false;
         this.selectedTool = undefined;
+        this.magnet = false
     }
 
     init(props, layout) {
@@ -57,6 +58,16 @@ class MetaHub {
         this.ohlcMap = [] // time => OHLC map of the main ov
         this.ohlcFn = undefined // OHLC mapper function
         this.scrollLock = false // Scroll lock state
+    }
+
+    handleKeyboardDown(event) {
+        this.magnet = event.ctrlKey;
+    }
+
+    handleKeyboardUp(event) {
+        if (this.magnet) {
+            this.magnet = false;
+        }
     }
 
     initHeatmap(id) {
@@ -110,12 +121,27 @@ class MetaHub {
         if (this.tool === 'Brush') {
             return void 0;
         }
+        if (this.tool === 'Magnet') {
+            return void 0;
+        }
+
         this.tool = 'Cursor';
         this.drawingMode = false;
     }
 
     toolSelected = (event) => {
+        if (this.tool === event.type) {
+            this.magnet = false;
+            this.tool = 'Cursor';
+            this.drawingMode = false;
+            return void 0;
+        }
+
         this.tool = event.type;
+
+        if (this.tool === 'Magnet') {
+            this.magnet = true;
+        }
     }
 
     // Extract meta functions from overlay

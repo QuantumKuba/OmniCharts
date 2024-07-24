@@ -25,14 +25,16 @@ export default class Keyboard {
         this.events.emitSpec(this.updId, 'propagate', {
             name: 'keydown',
             event: event
-        })
+        });
+        this.events.emit('keyboard-keydown', event);
     }
 
     keyup(event) {
         this.events.emitSpec(this.updId, 'propagate', {
             name: 'keyup',
             event: event
-        })
+        });
+        this.events.emit('keyboard-keyup', event);
     }
 
     keypress(event) {
