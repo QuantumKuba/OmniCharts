@@ -1,43 +1,47 @@
 <!-- App.svelte -->
 <script>
-import.meta.hot
-import { NightVision } from './index.js'
-import { onMount } from 'svelte'
-import data from '../data/data-ohlcv-rsi.json?id=main'
-import data2 from '../data/data-area.json?id=main-2'
-import data3 from '../data/data-aapl.json?id=main-3'
-import TestStack from '../tests/testStack.js'
+    import.meta.hot;
+    import { NightVision } from "./index.js";
+    import { onMount } from "svelte";
+    // import data from "../data/data-ohlcv-rsi.json?id=main";
+    // import data2 from "../data/data-area.json?id=main-2";
+    // import data3 from "../data/data-aapl.json?id=main-3";
+    import TestStack from "../tests/testStack.js";
 
+    // Tests
+    import fullReset from "../tests/data-sync/fullReset.js";
+    import paneAddRem from "../tests/data-sync/paneAddRem.js";
+    import paneSettings from "../tests/data-sync/paneSettings.js";
+    import ovAddRem from "../tests/data-sync/ovAddRem.js";
+    import scaleChange from "../tests/data-sync/scaleChange.js";
+    import mainOverlay from "../tests/data-sync/mainOverlay.js";
+    import ovSettings from "../tests/data-sync/ovSettings.js";
+    import ovPropsChange from "../tests/data-sync/ovPropsChange.js";
+    import ovDataChange from "../tests/data-sync/ovDataChange.js";
 
-// Tests
-import fullReset from '../tests/data-sync/fullReset.js'
-import paneAddRem from '../tests/data-sync/paneAddRem.js'
-import paneSettings from '../tests/data-sync/paneSettings.js'
-import ovAddRem from '../tests/data-sync/ovAddRem.js'
-import scaleChange from '../tests/data-sync/scaleChange.js'
-import mainOverlay from '../tests/data-sync/mainOverlay.js'
-import ovSettings from '../tests/data-sync/ovSettings.js'
-import ovPropsChange from '../tests/data-sync/ovPropsChange.js'
-import ovDataChange from '../tests/data-sync/ovDataChange.js'
+    // More tests
+    import realTime from "../tests/real-time/realTime.js";
 
-// More tests
-import realTime from '../tests/real-time/realTime.js'
+    // More tests
+    import timeBased from "../tests/tfs-test/allTimeBased.js";
+    import indexBased from "../tests/tfs-test/allIndexBased.js";
 
-// More tests
-import timeBased from '../tests/tfs-test/allTimeBased.js'
-import indexBased from '../tests/tfs-test/allIndexBased.js'
+    // More tests
+    import indicators from "../tests/indicators/indicators.js";
+    import rangeTool from "../tests/tools/rangeTool.js";
+    import lineTool from "../tests/tools/lineTool.js";
+    import watchPropTest from "../tests/navy/watchPropTest.js";
 
-// More tests
-import indicators from '../tests/indicators/indicators.js'
-import rangeTool from '../tests/tools/rangeTool.js'
-import lineTool from '../tests/tools/lineTool.js'
-import watchPropTest from '../tests/navy/watchPropTest.js'
+    // More tests
+    import logScaleTest from "../tests/scales/logScale.js";
+    import memoryTest from "../tests/memory/memoryTest.js";
 
-// More tests
-import logScaleTest from '../tests/scales/logScale.js'
-import memoryTest from '../tests/memory/memoryTest.js'
+    // Live data
+    import { DataLoader } from "../tests/real-time/lib/dataLoader.js";
+    import wsx from "../tests/real-time/lib/wsx.js";
+    import sampler from "../tests/real-time/lib/ohlcvSampler.js";
 
-/*
+    /*
 TODO: data-api interface:
 .getPanes()
 .getAllOverlays()
@@ -46,78 +50,140 @@ TODO: data-api interface:
 ...
 */
 
-// TODO: Memory leak tests
+    // TODO: Memory leak tests
 
-let stack = new TestStack()
-let chart = null
+    let stack = new TestStack();
+    let chart = null;
+    let data = [];
 
-//data.indexBased = true
+    //data.indexBased = true
 
-onMount(() => {
-    chart = new NightVision('chart-container', {
-        data: data,
-        //autoResize: true,
-        //indexBased: true
-    })
-    //chart.data = data2
-    window.chart = chart
-    window.stack = stack
+    onMount(() => {
+        chart = new NightVision("chart-container", {
+            data: data,
+            autoResize: true,
+            //indexBased: true
+        });
+        //chart.data = data2
 
-    stack.setGroup('data-sync')
+        let dl = new DataLoader();
 
-    fullReset(stack, chart)
-    paneAddRem(stack, chart)
-    paneSettings(stack, chart)
-    ovAddRem(stack, chart)
-    scaleChange(stack, chart)
-    mainOverlay(stack, chart)
-    ovSettings(stack, chart)
-    ovPropsChange(stack, chart)
-    ovDataChange(stack, chart)
+        // Load the first piece of the data
+        dl.load((data) => {
+            chart.data = data; // Set the initial data
+            chart.fullReset(); // Reset tre time-range
+            chart.se.uploadAndExec(); // Upload & exec scripts
+        });
 
-    stack.setGroup('real-time')
+        function loadMore() {
+            let data = chart.hub.mainOv.data;
+            let t0 = data[0][0];
+            if (chart.range[0] < t0) {
+                dl.loadMore(t0 - 1, (chunk) => {
+                    // Add a new chunk at the beginning
+                    data.unshift(...chunk);
+                    // Yo need to update "data"
+                    // when the data range is changed
+                    chart.update("data");
+                    chart.se.uploadAndExec();
+                });
+            }
+        }
 
-    realTime(stack, chart)
+        // Send an update to the script engine
+        async function update() {
+            await chart.se.updateData();
+            var delay; // Floating update rate
+            if (chart.hub.mainOv.dataSubset.length < 1000) {
+                delay = 10;
+            } else {
+                delay = 1000;
+            }
+            setTimeout(update, delay);
+        }
 
-    stack.setGroup('tfs-test')
+        // Load new data when user scrolls left
+        chart.events.on("app:$range-update", loadMore);
 
-    timeBased(stack, chart)
-    indexBased(stack, chart)
+        // Plus check for updates every second
+        setInterval(loadMore, 500);
 
-    stack.setGroup('ind-test')
+        // TA + chart update loop
+        setTimeout(update, 0);
 
-    indicators(stack, chart)
+        // Setup a trade data stream
+        wsx.init([dl.SYM]);
+        wsx.ontrades = (d) => {
+            if (!chart.hub.mainOv) return;
+            let data = chart.hub.mainOv.data;
+            let trade = {
+                price: d.price,
+                volume: d.price * d.size,
+            };
+            if (sampler(data, trade)) {
+                chart.update("data"); // New candle
+                chart.scroll(); // Scroll forward
+            }
+        };
+        window.wsx = wsx;
+        window.chart = chart;
+        window.stack = stack;
 
-    stack.setGroup('tools-test')
+        stack.setGroup("data-sync");
 
-    //rangeTool(stack, chart)
-    lineTool(stack, chart)
+        fullReset(stack, chart);
+        paneAddRem(stack, chart);
+        paneSettings(stack, chart);
+        ovAddRem(stack, chart);
+        scaleChange(stack, chart);
+        mainOverlay(stack, chart);
+        ovSettings(stack, chart);
+        ovPropsChange(stack, chart);
+        ovDataChange(stack, chart);
 
-    stack.setGroup('navy-test')
+        stack.setGroup("real-time");
 
-    watchPropTest(stack, chart)
+        realTime(stack, chart);
 
-    stack.setGroup('scales-test')
+        stack.setGroup("tfs-test");
 
-    logScaleTest(stack, chart)
+        timeBased(stack, chart);
+        indexBased(stack, chart);
 
-    stack.setGroup('memory-test')
+        stack.setGroup("ind-test");
 
-    memoryTest(stack, chart)
+        indicators(stack, chart);
 
-    //  Type in the console: stack.execAll()
-    //  or: stack.exec('<group>')    
+        stack.setGroup("tools-test");
 
-})
+        //rangeTool(stack, chart)
+        lineTool(stack, chart);
 
+        stack.setGroup("navy-test");
+
+        watchPropTest(stack, chart);
+
+        stack.setGroup("scales-test");
+
+        logScaleTest(stack, chart);
+
+        stack.setGroup("memory-test");
+
+        memoryTest(stack, chart);
+
+        //  Type in the console: stack.execAll()
+        //  or: stack.exec('<group>')
+    });
 </script>
-<style>
-#chart-container {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-}
-</style>
+
 <div class="app">
     <div id="chart-container"></div>
 </div>
+
+<style>
+    #chart-container {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+    }
+</style>
