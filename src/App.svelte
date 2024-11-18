@@ -55,7 +55,6 @@
     let data = [];
 
     //data.indexBased = true
-    //data.indexBased = true
 
     onMount(() => {
         chart = new NightVision("chart-container", {
