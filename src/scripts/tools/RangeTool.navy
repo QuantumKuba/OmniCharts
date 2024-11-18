@@ -3,14 +3,14 @@
 
 [OVERLAY name=RangeTool, ctx=Canvas, verion=1.0.1, author=GPT4]
 
-let pin1 = null 
-let pin2 = null 
+let pin1 = null
+let pin2 = null
 let shift = false
 let state = 'idle'
 
 // TODO: fix for index-based
 draw(ctx) {
-    const layout = $core.layout 
+    const layout = $core.layout
 
     if (pin1 && pin2) {
         const x1 = layout.time2x(pin1.t) // time to x coordinate
@@ -18,7 +18,7 @@ draw(ctx) {
         const y1 = layout.value2y(pin1.v) // value to y coordinate
         const y2 = layout.value2y(pin2.v) // value to y coordinate
 
-         // change fill color based on percentage
+        // change fill color based on percentage
         let color = percent() >= 0 ? '#3355ff' : '#ff3333';
         ctx.fillStyle = color + '33';
         ctx.fillRect(x1, y1, x2 - x1, y2 - y1)
@@ -26,15 +26,15 @@ draw(ctx) {
         // draw arrows in the middle of rectangle
         let midX = (x1 + x2) / 2;
         let midY = (y1 + y2) / 2;
-        $lib.drawArrow(ctx, midX, y1, midX, y2, color, Math.abs(y2 - y1) > 42); 
-        $lib.drawArrow(ctx, x1, midY, x2, midY, color, Math.abs(x2 - x1) > 42);  
+        $lib.drawArrow(ctx, midX, y1, midX, y2, color, Math.abs(y2 - y1) > 42);
+        $lib.drawArrow(ctx, x1, midY, x2, midY, color, Math.abs(x2 - x1) > 42);
 
         // draw rounded rectangle with text
         const text1 = `${deltaValue().toFixed(2)} (${percent().toFixed(2)}%)`;
-        const text2 = `${bars()} bars, ${timeText()}`;
+        const text2 = `${bars()} баров, ${timeText()}`;
         const text = `${text1}\n${text2}`;
         const textWidth = ctx.measureText(text).width;
-        
+
         const padding = 10;
         const mainRectCenterX = (x1 + x2) / 2; // calculate center of the main rectangle
         const roundRectX = mainRectCenterX - textWidth / 2 - padding; // center the text rectangle relative to the main rectangle
@@ -52,7 +52,7 @@ draw(ctx) {
         ctx.textBaseline = 'middle';
         ctx.fillText(text1, roundRectX + roundRectWidth / 2, roundRectY + roundRectHeight / 4);
         ctx.fillText(text2, roundRectX + roundRectWidth / 2, roundRectY + 3 * roundRectHeight / 4);
-      
+
     }
 }
 
@@ -115,13 +115,13 @@ timeText() {
 
     let result = "";
     if (days > 0) {
-        result += days + "d ";
+        result += days + "д ";
     }
     if ((hours > 0 || days > 0) && hours !== 0) {
-        result += hours + "h ";
+        result += hours + "ч ";
     }
     if (minutes > 0 && timeFrameMs < 60 * 60 * 1000 && minutes !== 0) {
-        result += minutes + "m";
+        result += minutes + "м";
     }
 
     return (negative ? '-' : '') + result.trim();
@@ -141,10 +141,20 @@ keyup(event) {
     }
 }
 
+mouseout(event) {
+    if (event.which === 2) {
+        shift = false
+    }
+}
+
 mousedown(event) {
-    const layout = $core.layout 
+    if ($core.meta.tool === 'RangeTool' || event.which === 2) {
+        shift = true;
+    }
+
+    const layout = $core.layout
     if (state === 'idle' && shift) {
-        // Create the first pin 
+        // Create the first pin
         pin1 = {
             t: $core.cursor.time,
             v: layout.y2value(event.layerY)
@@ -155,21 +165,48 @@ mousedown(event) {
         state = 'finished'
     } else if (state === 'finished') {
         state = 'idle'
-        pin1 = null 
-        pin2 = null 
+        pin1 = null
+        pin2 = null
+        shift = false;
     }
     $events.emitSpec('chart', 'update-layout')
 }
 
 mousemove(event) {
     if (state === 'drawing') {
-        const layout = $core.layout 
-        // Create the second pin 
+        const layout = $core.layout
+        // Create the second pin
         pin2 = {
             t: $core.cursor.time,
             v: layout.y2value(event.layerY)
         }
     }
+}
+
+let initialLow = 0;
+let initialHigh = 0;
+yRange(data, a, low)
+{
+    const updData = $core.data.slice(-500);
+    let len = updData.length;
+
+    var h, l, high = -Infinity, low = Infinity
+    if (initialLow && initialHigh) {
+        low = initialLow;
+        high = initialHigh;
+    } else {
+        for (var i = 0; i < len; i++) {
+            let point = updData[i];
+            if (!point) {
+                break;
+            }
+            if (point[2] > high) high = point[2];
+            if (point[3] < low) low = point[3];
+        }
+        initialLow = low;
+        initialHigh = high;
+    }
+    return [high, low]
 }
 
 // Disable legend by returning null

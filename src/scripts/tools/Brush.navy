@@ -1,0 +1,170 @@
+import Brush from "../../core/primitives/navyLib/brush.js";
+
+[OVERLAY name = Brush, ctx = Canvas, version = 1.0.0, author = Dmitry]
+
+prop('color', {type: 'string', def: '#ccc'});
+prop('lineWidth', {type: 'number', def: 2});
+
+let timeId = null;
+let mouseX = 0;
+let brushes = {}
+
+function init() {
+    $core.dataExt.brushes = $core.data;
+
+    for (const brush of $core.dataExt.brushes || []) {
+        brushes[brush.uuid] = new $lib.Brush($core, brush);
+        brushes[brush.uuid].onSelect = brushSelected;
+    }
+}
+
+function draw(ctx) {
+    if (!$core.dataExt.brushes?.length && brushes) {
+        Object.values(brushes).forEach(x => removeBrush(x.data.uuid))
+    }
+
+    for (const brush of Object.values(brushes)) {
+        brush.draw(ctx)
+    }
+}
+
+function keydown(event) {
+    if (event.code === 'KeyB') {
+        const timeout = $core.meta.tool === 'Brush' ? 0 : 50000;
+        timeId = setTimeout(newBrush, timeout)
+        mouseX = $core.mouse.x;
+        brushSelected(null);
+        $events.emit('update-layout');
+        propagate('keydown', event);
+    }
+
+    if (event.code === 'Backspace' || event.code === 'Delete') {
+        let s = Object.values(brushes).find(x => x.selected)
+        if (s) removeBrush(s.data.uuid)
+    }
+}
+
+function mousedown(event) {
+    if ($core.meta.tool !== 'Brush') {
+        brushSelected(null);
+        $events.emit('update-layout');
+        propagate('mousedown', event);
+        return void 0;
+    }
+
+    // const timeout = $core.meta.tool === 'Brush' ? 0 : 50000;
+    // timeId = setTimeout(newBrush, timeout)
+    mouseX = $core.mouse.x;
+    brushSelected(null);
+    $events.emit('update-layout');
+    propagate('mousedown', event);
+    newBrush();
+}
+
+function mouseup(event) {
+    // clearTimeout(timeId);
+    // timeId = null;
+    propagate('mouseup', event);
+    // $events.emit('drawing-mode-off');
+
+    let s = Object.values(brushes).find(x => x.selected);
+    if (s) {
+        $events.emit('change-tool-data', {
+            data: $core.dataExt.brushes,
+            id: $core.id
+        });
+    }
+
+    $events.emit('scroll-lock', false);
+}
+
+function mousemove(event) {
+    propagate('mousemove', event);
+}
+
+function mouseMoved() {
+    let d = Math.abs(mouseX - $core.mouse.x)
+    return d > 5
+}
+
+function unfinishedBrushes() {
+    for (const brush of Object.values(brushes)) {
+        if (brush.state === 'dragging') {
+            return true
+        }
+    }
+    return false
+}
+
+function removeBrush(uuid) {
+    delete brushes[uuid]
+    $core.dataExt.brushes = $core.dataExt.brushes?.filter(x => x.uuid !== uuid) ?? [];
+    $events.emit('update-layout')
+
+    $events.emit('change-tool-data', {
+        data: $core.dataExt.brushes,
+        id: $core.id
+    });
+
+    $events.emit('object-selected', {id: undefined, type: undefined});
+}
+
+function newBrush() {
+
+    // if (unfinishedBrushes() || mouseMoved()) return
+    if (mouseMoved()) {
+        return void 0;
+    }
+
+    if (!$core.dataExt.brushes) {
+        $core.dataExt.brushes = []
+    }
+
+    let time = $core.layout.x2time($core.cursor.x);
+    let yValue = $core.layout.y2value($core.cursor.y);
+    let uuid = $lib.Utils.uuid3();
+
+    let brush = {
+        points: [{x: time, y: yValue}],
+        lineWidth: $props.lineWidth,
+        color: $props.color,
+        uuid: uuid
+    };
+
+    $core.dataExt.brushes.push(brush);
+
+    brushes[uuid] = new $lib.Brush($core, brush);
+    brushes[uuid].onSelect = brushSelected;
+    brushes[uuid].selected = true;
+    brushes[uuid].state = 'dragging';
+
+    $events.emit('scroll-lock', true);
+    $events.emit('update-layout');
+
+    $events.emit('change-tool-data', {
+        data: $core.dataExt.brushes,
+        id: $core.id
+    });
+}
+
+function propagate(name, data) {
+    for (const brush of Object.values(brushes)) {
+        brush[name](data)
+    }
+}
+
+function brushSelected($uuid) {
+    if (!$uuid) {
+        $events.emit('object-selected', {id: undefined, type: undefined});
+    }
+
+    for (const uuid in brushes) {
+        const selected = uuid === $uuid;
+        brushes[uuid].selected = selected;
+        if (selected) {
+            $events.emit('object-selected', {id: uuid, type: 'Brush'});
+        }
+    }
+
+    $events.emit('update-layout')
+}

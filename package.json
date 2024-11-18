@@ -26,10 +26,13 @@
   "dependencies": {
     "@freecodecamp/strip-comments": "^3.0.1",
     "arrayslicer": "^1.2.3",
+    "d3": "^7.8.5",
     "hammerjs": "^2.0.8",
     "hamsterjs": "^1.1.3",
+    "lodash": "^4.17.21",
     "lz-string": "^1.5.0",
     "moment": "^2.29.4",
+    "pixi.js": "^7.3.2",
     "svelte": "^4.2.0"
   },
   "devDependencies": {

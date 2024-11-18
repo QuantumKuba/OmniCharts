@@ -41,4 +41,8 @@ export interface MetaHub {
 
   /** Get OHLC values to use as "magnet" values */
   ohlc(t: any): any;
+
+  resetHeatmap(): void;
+
+  destroyHeatmap(): void;
 }

@@ -22,7 +22,6 @@ class Scripts {
     }
 
     async init(srcs) {
-
         this.srcLib = Object.values(Overlays).map(x => x.default)
         this.srcLib.push(...Object.values(Tools).map(x => x.default))
         this.srcLib.push(...Object.values(Indicators).map(x => x.default))

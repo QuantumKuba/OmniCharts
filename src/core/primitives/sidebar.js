@@ -108,7 +108,8 @@ function tracker(props, layout, scale, side, ctx, tracker) {
     let a = S ? 7 : panWidth - 3
     let h = ct ? Math.floor(panHeight * 1.75) + 2 + HPX : panHeight
     roundRect(ctx, x , y, panWidth, h, 3, S)
-    ctx.fillStyle = props.colors.back
+    // ctx.fillStyle = props.colors.back
+    ctx.fillStyle = '#fff'
     ctx.textAlign = S ? 'left' : 'right'
     ctx.fillText(lbl, a, y + panHeight - 4) // TODO: remove hardcode
     if (ct) {

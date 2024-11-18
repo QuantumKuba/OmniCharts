@@ -4,7 +4,6 @@
 import Utils from './utils.js'
 
 function setup(id, w, h) {
-
     let canvas = document.getElementById(id)
     let dpr = window.devicePixelRatio || 1
     canvas.style.width = `${w}px`

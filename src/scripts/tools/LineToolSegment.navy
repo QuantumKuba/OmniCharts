@@ -1,0 +1,307 @@
+// Navy ~ 0.1-lite
+// <ds>Time & value measurment tool [Shift+Click]</ds>
+
+// import {Pins} from "./Pins.js";
+
+import layout from "../../core/layout.js";
+
+[OVERLAY name = LineToolSegment, ctx = Canvas, verion = 1.0.1, author = GPT4]
+
+let pin1 = null;
+let pin2 = null;
+let state = 'idle';
+let skip = true;
+let x1;
+let x2;
+let y1;
+let y2;
+let showPins = false;
+let pin1Active = false;
+let pin2Active = false;
+let pin1Hover = false;
+let pin2Hover = false;
+let lineActive = false;
+let collisions = [];
+let drag = {t: undefined, v: undefined};
+
+prop('pins', {type: 'array', def: undefined});
+prop('color', {type: 'string', def: '#dc9800'});
+prop('lineWidth', {type: 'string', def: 2});
+prop('lineStyle', {type: 'string', def: 0});
+prop('initYPos', {type: 'number', def: undefined});
+
+function init(ctx) {
+    if (!$props.pins) {
+        setTimeout(() => $events.emit('object-selected', {id: $core.id}));
+
+        if ($props.initYPos) {
+            pin1 = {
+                t: $core.cursor.time,
+                v: $core.layout.y2value($props.initYPos)
+            }
+            pin2 = {...pin1};
+            state = 'drawing';
+            $events.emitSpec('chart', 'update-layout');
+        }
+    }
+}
+
+function draw(ctx) {
+    const layout = $core.layout;
+    const storedPins = $props.pins;
+
+    if (storedPins?.length === 2 && (!pin1Active && !pin2Active && !lineActive)) {
+        [pin1, pin2] = storedPins;
+    }
+
+    if (pin1 && pin2) {
+        collisions = [];
+        x1 = layout.time2x(pin1.t) // time to x coordinate
+        x2 = layout.time2x(pin2.t) // time to x coordinate
+        y1 = layout.value2y(pin1.v) // value to y coordinate
+        y2 = layout.value2y(pin2.v) // value to y coordinate
+
+        // change fill color based on percentage
+        let color = $props.color;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+
+        ctx.beginPath();
+        ctx.setLineDash([$props.lineStyle, $props.lineStyle]);
+        ctx.lineWidth = $props.lineWidth;
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.closePath();
+
+        collisions.push(make([x1, y1], [x2, y2]).f);
+
+        if (showPins || pin1Active || pin2Active || $core.meta.selectedTool === $core.id || state === 'drawing') {
+            drawPins(ctx, x1, y1, x2, y2);
+        }
+    }
+}
+
+function drawPins(ctx, x1, y1, x2, y2) {
+    // Draw Pins
+    const r = 5;
+
+    // First Pin
+    ctx.beginPath();
+    ctx.setLineDash([0, 0]);
+    ctx.strokeStyle = '#dc9800';
+    ctx.shadowColor = "#dc9800";
+    ctx.fillStyle = $core.props.colors.back;
+    ctx.shadowBlur = 0;
+    if (pin1Hover || pin1Active) {
+        ctx.shadowBlur = 10;
+    }
+    ctx.arc(x1, y1, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.closePath();
+
+    // Second Pin
+    ctx.beginPath();
+    ctx.fillStyle = $core.props.colors.back;
+    ctx.strokeStyle = '#dc9800';
+    ctx.shadowColor = "#dc9800";
+    ctx.shadowBlur = 0
+    if (pin2Hover || pin2Active) {
+        ctx.shadowBlur = 10;
+    }
+    ctx.arc(x2, y2, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.closePath();
+}
+
+function mousedown(event) {
+    const layout = $core.layout;
+
+    if (event.which === 3) {
+        return void 0;
+    }
+
+    if (state === 'drawing') {
+        state = 'finished';
+
+        $events.emit('drawing-mode-off', {});
+        $events.emit('change-tool-settings', {
+            pins: [pin1, pin2],
+            id: $core.id
+        });
+        $props.pins = [pin1, pin2];
+    }
+
+    if ($props.pins?.length !== 2) {
+        state = 'drawing'
+    }
+
+    if (state === 'drawing') {
+        $core.meta.scrollLock = true;
+        pin1 = {
+            t: $core.cursor.time,
+            v: layout.y2value(event.layerY)
+        }
+        pin2 = {...pin1};
+    }
+
+    const [mouseX, mouseY] = getMouseCoords(event);
+    pin1Active = pinHover(x1, y1, mouseX, mouseY);
+    pin2Active = pinHover(x2, y2, mouseX, mouseY);
+    lineActive = collisions.some(f => f(mouseX, mouseY));
+    if (lineActive) {
+        drag = {
+            t: layout.time2x($core.cursor.time),
+            v: layout.y2value(event.layerY)
+        }
+    }
+
+    if (pin1Active || pin2Active || lineActive) {
+        setTimeout(() => $events.emit('object-selected', {id: $core.id}));
+    }
+
+    $events.emitSpec('chart', 'update-layout');
+}
+
+function mouseup(event) {
+    if ($core.meta.selectedTool !== $core.id) {
+        return void 0;
+    }
+
+    if (pin1Active || pin2Active || lineActive) {
+        $events.emit('change-tool-settings', {
+            pins: [pin1, pin2],
+            id: $core.id
+        });
+        $props.pins = [pin1, pin2];
+    }
+
+    collisions = [];
+    pin1Active = false;
+    pin2Active = false;
+    pin1Hover = false;
+    pin2Hover = false;
+    lineActive = false;
+    let drag = {t: undefined, v: undefined};
+    $core.meta.scrollLock = false;
+}
+
+function mousemove(event) {
+    if (skip) {
+        skip = false;
+        return void 0;
+    }
+
+    const layout = $core.layout;
+
+    let mouse = getMouseCoords(event);
+    showPins = collisions.some(f => f(mouse[0], mouse[1]));
+
+    const [mouseX, mouseY] = getMouseCoords(event);
+    pin1Hover = pinHover(x1, y1, mouseX, mouseY);
+    pin2Hover = pinHover(x2, y2, mouseX, mouseY);
+
+    if (pin1Active && $core.meta.selectedTool === $core.id) {
+        $core.meta.scrollLock = true;
+        pin1 = {
+            t: $core.cursor.time,
+            v: layout.y2value(event.layerY)
+        }
+    }
+
+    if (pin2Active && $core.meta.selectedTool === $core.id) {
+        $core.meta.scrollLock = true;
+        pin2 = {
+            t: $core.cursor.time,
+            v: layout.y2value(event.layerY)
+        }
+    }
+
+    if (lineActive && (!pin1Active && !pin2Active) && $core.meta.selectedTool === $core.id) {
+        $core.meta.scrollLock = true;
+        let dt1 = layout.time2x($props.pins[0].t) + (layout.time2x($core.cursor.time) - drag.t);
+        let dy1 = $props.pins[0].v + (layout.y2value(event.layerY) - drag.v);
+
+        let dt2 = layout.time2x($props.pins[1].t) + (layout.time2x($core.cursor.time) - drag.t);
+        let dy2 = $props.pins[1].v + (layout.y2value(event.layerY) - drag.v);
+
+        pin1 = {
+            t: layout.x2time(dt1),
+            v: dy1
+        }
+        pin2 = {
+            t: layout.x2time(dt2),
+            v: dy2
+        }
+    }
+
+    if (state === 'drawing') {
+        const layout = $core.layout;
+        // Create the second pin
+        pin2 = {
+            t: $core.cursor.time,
+            v: layout.y2value(event.layerY)
+        }
+    }
+}
+
+// Disable legend by returning null
+function legend() {
+    return void 0;
+}
+
+// Collision function. x, y - mouse coord.
+const make = (p1, p2) => {
+    let f = Math2.point2seg.bind(Math2)
+    return {
+        f: (x, y) => {
+            return f([x, y], p1, p2) < 7
+        }
+    }
+}
+
+let getMouseCoords = (event) => {
+    return [event.layerX, event.layerY];
+}
+
+let cursorInRect = (mouseX, mouseY, rectX, rectY, rectW, rectH) => {
+    let xLine = mouseX > rectX && mouseX < rectX + rectW
+    let yLine = mouseY > rectY && mouseY < rectY + rectH
+
+    return xLine && yLine
+}
+
+let pinHover = (x, y, mouseX, mouseY) => {
+    return (
+        (x - mouseX) * (x - mouseX) +
+        (y - mouseY) * (y - mouseY)
+    ) < 50
+}
+
+let initialLow = 0;
+let initialHigh = 0;
+yRange(data, a, low)
+{
+    const updData = $core.data.slice(-500);
+    let len = updData.length;
+
+    var h, l, high = -Infinity, low = Infinity
+    if (initialLow && initialHigh) {
+        low = initialLow;
+        high = initialHigh;
+    } else {
+        for (var i = 0; i < len; i++) {
+            let point = updData[i];
+            if (!point) {
+                break;
+            }
+            if (point[2] > high) high = point[2];
+            if (point[3] < low) low = point[3];
+        }
+        initialLow = low;
+        initialHigh = high;
+    }
+    return [high, low]
+}

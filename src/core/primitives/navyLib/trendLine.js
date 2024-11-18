@@ -8,27 +8,32 @@ export default class TrendLine {
         this.data = line
         this.hover = false
         this.selected = false
-        this.onSelect = () => {}
+        this.onSelect = () => {
+        }
         switch (line.type) {
             case 'segment':
-                this.line = new core.lib.Segment(core)
-            break
+                this.line = new core.lib.Segment(core);
+                this.pins = [
+                    new core.lib.Pin(core, this, 'p1'),
+                    new core.lib.Pin(core, this, 'p2')
+                ]
+                break;
+            case 'ray':
+                this.line = new core.lib.Ray(core);
+                this.pins = [new core.lib.Pin(core, this, 'p1')]
+                break;
         }
-        this.pins = [
-            new core.lib.Pin(core, this, 'p1'),
-            new core.lib.Pin(core, this, 'p2')
-        ]
-        if (nw) this.pins[1].state = 'tracking'
+        if (nw && line.type === 'segment') this.pins[1].state = 'tracking'
     }
 
     draw(ctx) {
-
         this.line.update(this.data.p1, this.data.p2)
-        ctx.lineWidth = 1
-        ctx.strokeStyle = '#33ff33'
+        ctx.lineWidth = this.data.lineWidth ?? 1;
+        ctx.strokeStyle = this.data.color ?? '#dc9800'
         ctx.beginPath()
-        this.line.draw(ctx)
-        ctx.stroke()
+        this.line.draw(ctx);
+        ctx.stroke();
+        ctx.closePath();
 
         if (this.hover || this.selected) {
             for (var pin of this.pins) {
@@ -47,7 +52,7 @@ export default class TrendLine {
         for (var pin of this.pins) {
             pin[name](data)
         }
-    } 
+    }
 
     mousedown(event) {
         this.propagate('mousedown', event)

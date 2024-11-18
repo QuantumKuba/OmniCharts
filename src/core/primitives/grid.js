@@ -32,7 +32,6 @@ export default class Grid extends Layer {
     }
 
     draw(ctx) {
-
         let layout = this.layout
         if (!layout || !this.show) return
 

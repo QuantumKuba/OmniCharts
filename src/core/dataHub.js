@@ -1,4 +1,3 @@
-
 // Data container (original plus subset data)
 // + Completes the structure to a full state
 // + Implements various update operations.
@@ -36,7 +35,6 @@ class DataHub {
         this.offchart = null // All other panes
         this.mainOv = null // Main overlay ref
         this.mainPaneId = null // Mane pane id
-
     }
 
     // Update data on 'range-changed'. Should apply
@@ -58,7 +56,7 @@ class DataHub {
     calcSubset(range) {
         var paneId = 0
         for (var pane of this.data.panes || []) {
-            pane.id =  paneId++
+            pane.id = paneId++
             pane.overlays = pane.overlays || []
             pane.settings = pane.settings || {}
             var ovId = 0
@@ -131,7 +129,7 @@ class DataHub {
     }
 
     // [API] Create a subset of timeseries
-    filter (data, range, offset = 0) {
+    filter(data, range, offset = 0) {
         let filter = this.indexBased ?
             Utils.fastFilterIB : Utils.fastFilter2
         var ix = filter(
@@ -211,7 +209,6 @@ class DataHub {
         this.events.emitSpec(`ll-${llId}`, 'update-ll')
 
     }
-
 }
 
 let instances = {}
@@ -223,4 +220,4 @@ function instance(id) {
     return instances[id]
 }
 
-export default { instance }
+export default {instance}

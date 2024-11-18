@@ -11,7 +11,7 @@ let S = side === 'right' ? 1 : 0
 let stubId = `${props.id}-stub-${id}-${side}`
 
 $:stubStyle = `
-    left: ${S * (layout.width + layout.sbMax[0])}px;
+    left: ${S * (layout.width + layout.sbMax[0] + props.offset)}px;
     top: ${layout.offset || 0}px;
     width: ${layout.sbMax[S] - 1}px;
     height: ${layout.height - (id ? 1 : 0)}px;

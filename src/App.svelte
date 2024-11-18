@@ -21,11 +21,9 @@
 
     // More tests
     import realTime from "../tests/real-time/realTime.js";
-
     // More tests
     import timeBased from "../tests/tfs-test/allTimeBased.js";
     import indexBased from "../tests/tfs-test/allIndexBased.js";
-
     // More tests
     import indicators from "../tests/indicators/indicators.js";
     import rangeTool from "../tests/tools/rangeTool.js";
@@ -42,13 +40,13 @@
     import sampler from "../tests/real-time/lib/ohlcvSampler.js";
 
     /*
-TODO: data-api interface:
-.getPanes()
-.getAllOverlays()
-.pane('main').getRenderers()
-.pane(0).getOverlay('<name>').getRenderer() // id
-...
-*/
+    TODO: data-api interface:
+    .getPanes()
+    .getAllOverlays()
+    .pane('main').getRenderers()
+    .pane(0).getOverlay('<name>').getRenderer() // id
+    ...
+    */
 
     // TODO: Memory leak tests
 
@@ -56,6 +54,7 @@ TODO: data-api interface:
     let chart = null;
     let data = [];
 
+    //data.indexBased = true
     //data.indexBased = true
 
     onMount(() => {
@@ -181,6 +180,14 @@ TODO: data-api interface:
 </div>
 
 <style>
+    .app {
+        /* width: 1080px; */
+        /* height: 720px; */
+        /* margin: 0 auto; */
+        /* position: relative; */
+        /* overflow: hidden; */
+    }
+
     #chart-container {
         position: absolute;
         width: 100%;

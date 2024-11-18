@@ -16,6 +16,8 @@ import Context from '../stuff/context.js'
 import Pane from './Pane.svelte'
 import Botbar from './Botbar.svelte'
 import NoDataStub from './NoDataStub.svelte'
+import Toolbar from "./Toolbar.svelte";
+import Heatmap from "../core/primitives/heatmap.js";
 
 export let props = {}
 
@@ -71,7 +73,6 @@ events.on('chart:update-layout', update)
 events.on('chart:full-update', fullUpdate)
 
 onMount(() => {
-
     hub.calcSubset(range)
     hub.detectMain()
     hub.loadScripts(range, scan.tf, true)
@@ -79,13 +80,15 @@ onMount(() => {
 
     scan.updatePanesHash()
 
-    layout = new Layout(chartProps, hub, meta)
+    layout = new Layout(chartProps, hub, meta);
 
     // console.log(layout) // DEBUG
 })
 
 onDestroy(() => {
+    console.log('destroyHeatmap');
     // Clean-up event listeners on 'chart' component
+    meta.destroyHeatmap();
     events.off('chart')
 })
 
@@ -99,7 +102,7 @@ function onCursorChanged($cursor, emit = true) {
             setTimeout(() => update())
         }
     }
-    if (emit) events.emit('$cursor-update', 
+    if (emit) events.emit('$cursor-update',
         Utils.makeCursorEvent($cursor, cursor, layout)
     )
     //if (cursor.locked) return // filter double updates (*)
@@ -153,7 +156,6 @@ function update(opt = {}, emit = true) {
 // TODO: we can update only panes with
 // overlay changes. But it requires more work
 function fullUpdate(opt = {}) {
-
     let prevIbMode = scan.ibMode
     interval = scan.detectInterval()
     timeFrame = scan.getTimeframe()
@@ -186,6 +188,8 @@ function rangeUpdate($range) {
 {#key chartRR} <!-- Full chart re-render -->
 <div class="nvjs-chart" >
     {#if layout && layout.main}
+        <Toolbar {props} {layout} side='left'/>
+
         {#each hub.panes() as pane, i}
     	<Pane id={i}
             layout={layout.grids[i]}

@@ -9,6 +9,7 @@ class DataScanner {
     constructor() {}
 
     init(props) {
+
         // [API] All read-only
         // Chart props
         this.props = props

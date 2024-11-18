@@ -1,16 +1,15 @@
-
 // Container for y-transforms, meta functions, other info
 // about overlays (e.g. yRange)
 
-import Utils from '../stuff/utils.js'
 import Events from './events.js'
 import DataHub from './dataHub.js'
+import Heatmap from "./primitives/heatmap.js";
 
 class MetaHub {
 
     constructor(nvId) {
 
-        let events = Events.instance(nvId)
+        let events = Events.instance(nvId);
         this.hub = DataHub.instance(nvId)
         this.events = events
 
@@ -19,13 +18,25 @@ class MetaHub {
         events.on('meta:select-overlay', this.onOverlaySelect.bind(this))
         events.on('meta:grid-mousedown', this.onGridMousedown.bind(this))
         events.on('meta:scroll-lock', this.onScrollLock.bind(this))
+        events.on('meta:tool-selected', this.toolSelected.bind(this));
+        events.on('meta:drawing-mode-off', this.drawingModeOff.bind(this));
+        events.on('meta:change-tool-data', this.changeToolData.bind(this));
+        events.on('meta:object-selected', this.objectSelected.bind(this));
+        events.on('meta:remove-all-tools', this.removeAllTools.bind(this));
+        events.on('meta:keyboard-keydown', this.handleKeyboardDown.bind(this));
+        events.on('meta:keyboard-keyup', this.handleKeyboardUp.bind(this));
 
         // Persistent meta storage
-        this.storage = {}
+        this.storage = {};
+        this.heatmap = undefined;
+
+        this.tool = 'Cursor';
+        this.drawingMode = false;
+        this.selectedTool = undefined;
+        this.magnet = false
     }
 
-    init(props) {
-
+    init(props, layout) {
         this.panes = 0 // Panes processed
         this.ready = false
         // [API] read-only
@@ -47,7 +58,90 @@ class MetaHub {
         this.ohlcMap = [] // time => OHLC map of the main ov
         this.ohlcFn = undefined // OHLC mapper function
         this.scrollLock = false // Scroll lock state
+    }
 
+    handleKeyboardDown(event) {
+        this.magnet = event.ctrlKey;
+    }
+
+    handleKeyboardUp(event) {
+        if (this.magnet) {
+            this.magnet = false;
+        }
+    }
+
+    initHeatmap(id) {
+        this.heatmap = new Heatmap(id);
+    }
+
+    destroyHeatmap() {
+        this.heatmap.destroy();
+        this.heatmap = undefined;
+    }
+
+    resetHeatmap() {
+        this.heatmap.reset();
+    }
+
+    // User tapped grid (& deselected all overlays)
+    onGridMousedown(event) {
+        this.selectedOverlay = undefined
+        this.events.emit('$overlay-select', {
+            index: undefined,
+            ov: undefined
+        });
+    }
+
+    changeToolData = ({id, data}) => {
+        const overlay = this.hub.data.panes[0].overlays.find(overlay => overlay.id === id);
+        overlay.data = data ?? [];
+
+        this.events.emit('commit-tool-changes');
+    }
+
+    objectSelected = ({id}) => {
+        this.selectedTool = id;
+    }
+
+    removeAllTools = () => {
+        for (const drawingOverlay of this.hub.data.panes[0].overlays) {
+            if (drawingOverlay.drawingTool) {
+                drawingOverlay.data = [];
+                drawingOverlay.dataExt = {};
+            }
+        }
+
+        this.drawingModeOff();
+        this.events.emit('object-selected', {id: undefined});
+        this.events.emitSpec('chart', 'update-layout');
+        this.events.emit('commit-tool-changes');
+    }
+
+    drawingModeOff = () => {
+        if (this.tool === 'Brush') {
+            return void 0;
+        }
+        if (this.tool === 'Magnet') {
+            return void 0;
+        }
+
+        this.tool = 'Cursor';
+        this.drawingMode = false;
+    }
+
+    toolSelected = (event) => {
+        if (this.tool === event.type) {
+            this.magnet = false;
+            this.tool = 'Cursor';
+            this.drawingMode = false;
+            return void 0;
+        }
+
+        this.tool = event.type;
+
+        if (this.tool === 'Magnet') {
+            this.magnet = true;
+        }
     }
 
     // Extract meta functions from overlay
@@ -153,11 +247,11 @@ class MetaHub {
             let [type, uuid1, uuid2] = hash.split(':')
             let pane = this.hub.panes().find(x => x.uuid === uuid1)
             if (!pane) continue
-            switch(type) {
+            switch (type) {
                 case 'yts': // Y-transforms
                     if (!yts[pane.id]) yts[pane.id] = []
-                    yts[pane.id][uuid2] =  this.storage[hash]
-                break
+                    yts[pane.id][uuid2] = this.storage[hash]
+                    break
             }
         }
         this.store() // Store new state
@@ -213,15 +307,6 @@ class MetaHub {
         })
     }
 
-    // User tapped grid (& deselected all overlays)
-    onGridMousedown(event) {
-        this.selectedOverlay = undefined
-        this.events.emit('$overlay-select', {
-            index: undefined,
-            ov: undefined
-        })
-    }
-
     // Overlay/user set lock on scrolling
     onScrollLock(event) {
         this.scrollLock = event
@@ -238,4 +323,4 @@ function instance(id) {
     return instances[id]
 }
 
-export default { instance }
+export default {instance}

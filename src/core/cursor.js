@@ -1,15 +1,17 @@
-
 // Cursor object (crosshair)
 // - grid magnet (cursor sticks to the t-axis values)
 // - sets current cursor values (nearest data points)
 
 import Utils from '../stuff/utils.js'
 import math from '../stuff/math.js'
+import Const from "../stuff/constants.js";
+
+const HPX = Const.HPX
 
 export default class Cursor {
 
     constructor(meta) {
-        this.meta = meta
+        this.meta = meta;
     }
 
     xSync(hub, layout, props, update) {
@@ -88,8 +90,26 @@ export default class Cursor {
         let grid = layout.grids[gridId]
 
         for (var scale of Object.values(grid.scales)) {
-            let $ = this.y2value(this.y, scale)
-            this.scales[scale.scaleSpecs.id] = $
+            let $ = this.y2value(this.y, scale);
+
+            if (this.meta.magnet && this.meta.ohlcMap[this.ti]) {
+                const low = this.meta.ohlcMap[this.ti].ref[3];
+                const high = this.meta.ohlcMap[this.ti].ref[2];
+                if ($ <= low) {
+                    const distance = (Math.abs($ - low)) / low * 100;
+                    if (distance <= 10) {
+                        $ = low;
+                    }
+                } else {
+                    const distance = (Math.abs($ - high)) / high * 100;
+                    if (distance <= 10) {
+                        $ = high;
+                    }
+                }
+            }
+
+            this.scales[scale.scaleSpecs.id] = $;
+            this.y = this.value2y($, scale);
         }
     }
 
@@ -124,6 +144,10 @@ export default class Cursor {
         let ls = scale.scaleSpecs.log
         if (ls) return math.exp((y - scale.B) / scale.A)
         return (y - scale.B) / scale.A
+    }
+
+    value2y(y, scale) {
+        return y * scale.A + scale.B + HPX
     }
 
     getValue(paneId, ovId) {
