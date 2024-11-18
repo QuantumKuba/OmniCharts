@@ -1,7 +1,7 @@
 // Navy ~ 0.2-lite
 // <ds>Time & value measurment tool [Shift+Click]</ds>
 
-[OVERLAY name=RangeTool, ctx=Canvas, verion=1.0.1, author=GPT4]
+[OVERLAY name = RangeTool, ctx = Canvas, verion = 1.0.1, author = GPT4]
 
 let pin1 = null
 let pin2 = null
@@ -31,7 +31,7 @@ draw(ctx) {
 
         // draw rounded rectangle with text
         const text1 = `${deltaValue().toFixed(2)} (${percent().toFixed(2)}%)`;
-        const text2 = `${bars()} баров, ${timeText()}`;
+        const text2 = `${bars()} Bars, ${timeText()}`;
         const text = `${text1}\n${text2}`;
         const textWidth = ctx.measureText(text).width;
 
@@ -115,13 +115,13 @@ timeText() {
 
     let result = "";
     if (days > 0) {
-        result += days + "д ";
+        result += days + "D ";
     }
     if ((hours > 0 || days > 0) && hours !== 0) {
-        result += hours + "ч ";
+        result += hours + "H ";
     }
     if (minutes > 0 && timeFrameMs < 60 * 60 * 1000 && minutes !== 0) {
-        result += minutes + "м";
+        result += minutes + "m";
     }
 
     return (negative ? '-' : '') + result.trim();

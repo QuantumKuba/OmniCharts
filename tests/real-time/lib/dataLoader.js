@@ -29,7 +29,7 @@ class DataLoader {
                             name: "Heatmap",
                             type: "Heatmap",
                             main: false,
-                            data: [], // Placeholder, update dynamically if needed
+                            data: data.map((x) => this.format(x)),
                             settings: {},
                             props: {},
                         },
