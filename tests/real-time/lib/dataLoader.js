@@ -22,15 +22,6 @@ class DataLoader {
                             type: "Candles",
                             main: true,
                             data: data.map((x) => this.format(x)),
-                            settings: {},
-                            props: {},
-                        },
-                        {
-                            name: "Heatmap",
-                            type: "Heatmap",
-                            main: false,
-                            data: data.map((x) => this.format(x)),
-                            settings: {},
                             props: {},
                         },
                         {

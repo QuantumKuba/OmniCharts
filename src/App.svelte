@@ -39,6 +39,8 @@
     import wsx from "../tests/real-time/lib/wsx.js";
     import sampler from "../tests/real-time/lib/ohlcvSampler.js";
 
+    import heatmapScript from "./scripts/heatmap.navy";
+
     /*
     TODO: data-api interface:
     .getPanes()
@@ -73,7 +75,11 @@
             chart.se.uploadAndExec(); // Upload & exec scripts
         });
 
-        function loadMore() {
+        function loadMore() {      
+            if (!chart.hub.mainOv) {
+                setTimeout(update, 100); // Retry after a short delay
+                return;
+            }
             let data = chart.hub.mainOv.data;
             let t0 = data[0][0];
             if (chart.range[0] < t0) {
@@ -90,6 +96,10 @@
 
         // Send an update to the script engine
         async function update() {
+            if (!chart.hub.mainOv) {
+                setTimeout(update, 100); // Retry after a short delay
+                return;
+            }
             await chart.se.updateData();
             var delay; // Floating update rate
             if (chart.hub.mainOv.dataSubset.length < 1000) {
@@ -98,7 +108,7 @@
                 delay = 1000;
             }
             setTimeout(update, delay);
-        }
+    }
 
         // Load new data when user scrolls left
         chart.events.on("app:$range-update", loadMore);
