@@ -3,7 +3,8 @@
  * about overlays (e.g., yRange). It manages events, persistent meta storage, and 
  * various overlay-related functionalities.
  */
-import Utils from '../stuff/utils.js'
+
+// import Utils from '../stuff/utils.js'
 import Events from './events.js'
 import DataHub from './dataHub.js'
 
