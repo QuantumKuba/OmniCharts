@@ -1,12 +1,14 @@
-// Container for y-transforms, meta functions, other info
-// about overlays (e.g. yRange)
-
-import Events from './events.js'
-import DataHub from './dataHub.js'
-import Heatmap from "./primitives/heatmap.js";
-
+/**
+ * MetaHub class is a container for y-transforms, meta functions, and other information
+ * about overlays (e.g., yRange). It manages events, persistent meta storage, and 
+ * various overlay-related functionalities.
+ */
 class MetaHub {
 
+    /**
+     * Constructor for MetaHub.
+     * @param {string} nvId - The ID for the MetaHub instance.
+     */
     constructor(nvId) {
 
         let events = Events.instance(nvId);
@@ -23,8 +25,8 @@ class MetaHub {
         events.on('meta:change-tool-data', this.changeToolData.bind(this));
         events.on('meta:object-selected', this.objectSelected.bind(this));
         events.on('meta:remove-all-tools', this.removeAllTools.bind(this));
-        events.on('meta:keyboard-keydown', this.handleKeyboardDown.bind(this));
-        events.on('meta:keyboard-keyup', this.handleKeyboardUp.bind(this));
+        events.on('meta:keyboard-keydown', this.toggleMagnetOnCtrlKeyDown.bind(this));
+        events.on('meta:keyboard-keyup', this.resetMagnetOnCtrlUp.bind(this));
 
         // Persistent meta storage
         this.storage = {};
@@ -36,6 +38,11 @@ class MetaHub {
         this.magnet = false
     }
 
+    /**
+     * Initializes MetaHub with properties and layout.
+     * @param {Object} props - Properties for initialization.
+     * @param {Object} layout - Layout for initialization.
+     */
     init(props, layout) {
         this.panes = 0 // Panes processed
         this.ready = false
@@ -55,35 +62,56 @@ class MetaHub {
                 index: n // Item global index
             }, ...
         }*/
-        this.ohlcMap = [] // time => OHLC map of the main ov
+        this.ohlcMap = [] // time => OHLC map of the main overlay
         this.ohlcFn = undefined // OHLC mapper function
         this.scrollLock = false // Scroll lock state
     }
 
-    handleKeyboardDown(event) {
+    /**
+     * Handles keyboard key down event.
+     * @param {Object} event - The keyboard event.
+     */
+    toggleMagnetOnCtrlKeyDown(event) {
         this.magnet = event.ctrlKey;
     }
 
-    handleKeyboardUp(event) {
+    /**
+     * Handles keyboard key up event.
+     * @param {Object} event - The keyboard event.
+     */
+    resetMagnetOnCtrlUp(event) {
         if (this.magnet) {
             this.magnet = false;
         }
     }
 
+    /**
+     * Initializes the heatmap with a given ID.
+     * @param {string} id - The ID for the heatmap.
+     */
     initHeatmap(id) {
         this.heatmap = new Heatmap(id);
     }
 
+    /**
+     * Destroys the heatmap instance.
+     */
     destroyHeatmap() {
         this.heatmap.destroy();
         this.heatmap = undefined;
     }
 
+    /**
+     * Resets the heatmap instance.
+     */
     resetHeatmap() {
         this.heatmap.reset();
     }
 
-    // User tapped grid (& deselected all overlays)
+    /**
+     * Handles grid mousedown event and deselects all overlays.
+     * @param {Object} event - The mousedown event.
+     */
     onGridMousedown(event) {
         this.selectedOverlay = undefined
         this.events.emit('$overlay-select', {
@@ -92,17 +120,28 @@ class MetaHub {
         });
     }
 
-    changeToolData = ({id, data}) => {
+    /**
+     * Changes tool data for a specific overlay.
+     * @param {Object} param - Object containing overlay ID and update data.
+     */
+    changeToolData = ({ id, data }) => {
         const overlay = this.hub.data.panes[0].overlays.find(overlay => overlay.id === id);
         overlay.data = data ?? [];
 
         this.events.emit('commit-tool-changes');
     }
 
-    objectSelected = ({id}) => {
+    /**
+     * Handles object selection event.
+     * @param {Object} param -  Object containing the ID of the selected object.
+     * */
+    objectSelected = ({ id }) => {
         this.selectedTool = id;
     }
 
+    /**
+     * Removes all tools from the overlays and reset the drawing mode.
+     */
     removeAllTools = () => {
         for (const drawingOverlay of this.hub.data.panes[0].overlays) {
             if (drawingOverlay.drawingTool) {
@@ -112,11 +151,14 @@ class MetaHub {
         }
 
         this.drawingModeOff();
-        this.events.emit('object-selected', {id: undefined});
+        this.events.emit('object-selected', { id: undefined });
         this.events.emitSpec('chart', 'update-layout');
         this.events.emit('commit-tool-changes');
     }
 
+    /**
+     * Turns off drawing mode and resets the tool to Cursor.
+     */
     drawingModeOff = () => {
         if (this.tool === 'Brush') {
             return void 0;
@@ -129,6 +171,10 @@ class MetaHub {
         this.drawingMode = false;
     }
 
+    /**
+     * Handles tool selection event.
+     * @param {Object} event - The tool selection event object.
+     */
     toolSelected = (event) => {
         if (this.tool === event.type) {
             this.magnet = false;
@@ -144,12 +190,16 @@ class MetaHub {
         }
     }
 
-    // Extract meta functions from overlay
+    /**
+     * Extracts meta functions from an overlay and stores them.
+     * @param {Object} overlay - The overlay object.
+     */
     exctractFrom(overlay) {
         let gridId = overlay.gridId()
         let id = overlay.id()
 
         // yRange functions
+        // Populate functions based on overlay methods
         var yrfs = this.yRangeFns[gridId] || []
         yrfs[id] = overlay.yRange ? {
             exec: overlay.yRange,
@@ -185,8 +235,9 @@ class MetaHub {
 
     }
 
-    // Maps timestamp => ohlc, index
-    // TODO: should add support for indexBased? 
+    /**
+     * Calculates OHLC map.
+     */
     calcOhlcMap() {
         this.ohlcMap = {}
         let data = this.hub.mainOv.data
@@ -198,17 +249,21 @@ class MetaHub {
         }
     }
 
-    // Store auto precision for a specific overlay
+    /**
+     * Stores auto precision for a specific overlay.
+     * @param {string} gridId - The grid ID.
+     * @param {string} ovId - The overlay ID.
+     * @param {number} prec - The precision value.
+     */
     setAutoPrec(gridId, ovId, prec) {
         let aps = this.autoPrecisions[gridId] || []
         aps[ovId] = prec
         this.autoPrecisions[gridId] = aps
     }
 
-    // Call this after all overlays are processed
-    // We need to make an update to apply freshly
-    // extracted functions
-    // TODO: probably can do better
+    /**
+     * Finalizes the processing of overlays.
+     */
     finish() {
         this.panes++
         if (this.panes < this.hub.panes().length) return
@@ -222,8 +277,9 @@ class MetaHub {
         })
     }
 
-    // Store some meta info such as ytransform by
-    // (pane.uuid + scaleId) hash
+    /**
+     * Stores meta information such as y-transform by (pane.uuid + scaleId) hash.
+     */
     store() {
         this.storage = {}
         let yts = this.yTransforms || []
@@ -239,8 +295,9 @@ class MetaHub {
 
     }
 
-    // Restore that info after an update in the
-    // pane/overlay order
+    /**
+     * Restores meta information after an update in the pane/overlay order.
+     */
     restore() {
         let yts = this.yTransforms
         for (var hash in this.storage) {
@@ -257,27 +314,51 @@ class MetaHub {
         this.store() // Store new state
     }
 
-    // [API] Get y-transform of a specific scale
+    /**
+     * Gets y-transform of a specific scale.
+     * @param {string} gridId - The grid ID.
+     * @param {string} scaleId - The scale ID.
+     * @returns {Object} The y-transform object.
+     */
     getYtransform(gridId, scaleId) {
         return (this.yTransforms[gridId] || [])[scaleId]
     }
 
-    // [API] Get auto precision of a specific overlay
+    /**
+     * Gets auto precision of a specific overlay.
+     * @param {string} gridId - The grid ID.
+     * @param {string} ovId - The overlay ID.
+     * @returns {number} The auto precision value.
+     */
     getAutoPrec(gridId, ovId) {
         return (this.autoPrecisions[gridId] || [])[ovId]
     }
 
-    // [API] Get a precision smapler of a specific overlay
+    /**
+     * Gets precision sampler of a specific overlay.
+     * @param {string} gridId - The grid ID.
+     * @param {string} ovId - The overlay ID.
+     * @returns {Object} The precision sampler object.
+     */
     getPreSampler(gridId, ovId) {
         return (this.preSamplers[gridId] || [])[ovId]
     }
 
-    // [API] Get legend formatter of a specific overlay
+    /**
+     * Gets legend formatter of a specific overlay.
+     * @param {string} gridId - The grid ID.
+     * @param {string} ovId - The overlay ID.
+     * @returns {Object} The legend formatter object.
+     */
     getLegendFns(gridId, ovId) {
         return (this.legendFns[gridId] || [])[ovId]
     }
 
-    // [API] Get OHLC values to use as "magnet" values
+    /**
+     * Gets OHLC values to use as "magnet" values.
+     * @param {number} t - The timestamp.
+     * @returns {Object} The OHLC values.
+     */
     ohlc(t) {
         let el = this.ohlcMap[t]
         if (!el || !this.ohlcFn) return
@@ -286,7 +367,10 @@ class MetaHub {
 
     // EVENT HANDLERS
 
-    // User changed y-range
+    /**
+     * Handles y-transform change event.
+     * @param {Object} event - The y-transform event.
+     */
     onYTransform(event) {
         let yts = this.yTransforms[event.gridId] || {}
         let tx = yts[event.scaleId] || {}
@@ -298,7 +382,10 @@ class MetaHub {
         this.store()
     }
 
-    // User tapped legend & selected the overlay
+    /**
+     * Handles overlay selection event.
+     * @param {Object} event - The overlay selection event.
+     */
     onOverlaySelect(event) {
         this.selectedOverlay = event.index
         this.events.emit('$overlay-select', {
@@ -307,7 +394,10 @@ class MetaHub {
         })
     }
 
-    // Overlay/user set lock on scrolling
+    /**
+     * Handles scroll lock event.
+     * @param {Object} event - The scroll lock event.
+     */
     onScrollLock(event) {
         this.scrollLock = event
     }
@@ -316,6 +406,11 @@ class MetaHub {
 
 let instances = {}
 
+/**
+ * Returns an instance of MetaHub.
+ * @param {string} id - The ID for the MetaHub instance.
+ * @returns {MetaHub} The MetaHub instance.
+ */
 function instance(id) {
     if (!instances[id]) {
         instances[id] = new MetaHub(id)
@@ -323,4 +418,4 @@ function instance(id) {
     return instances[id]
 }
 
-export default {instance}
+export default { instance }
