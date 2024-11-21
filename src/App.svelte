@@ -1,14 +1,24 @@
 <!-- App.svelte -->
 <script>
+    /**
+     * Main application component for rendering the NightVision chart and managing
+     * test suites, real-time data updates, and user interactions.
+     */
+
+    // Enables hot module replacement for development
     import.meta.hot;
+
+    // Import core NightVision charting library and utilities
     import { NightVision } from "./index.js";
     import { onMount } from "svelte";
     // import data from "../data/data-ohlcv-rsi.json?id=main";
     // import data2 from "../data/data-area.json?id=main-2";
     // import data3 from "../data/data-aapl.json?id=main-3";
+
+    // Import test stack for managing autoated tests
     import TestStack from "../tests/testStack.js";
 
-    // Tests
+    // Data sync tests
     import fullReset from "../tests/data-sync/fullReset.js";
     import paneAddRem from "../tests/data-sync/paneAddRem.js";
     import paneSettings from "../tests/data-sync/paneSettings.js";
@@ -19,26 +29,33 @@
     import ovPropsChange from "../tests/data-sync/ovPropsChange.js";
     import ovDataChange from "../tests/data-sync/ovDataChange.js";
 
-    // More tests
+    // Real-time data tests
     import realTime from "../tests/real-time/realTime.js";
-    // More tests
+
+    // Timeframe-based tests
     import timeBased from "../tests/tfs-test/allTimeBased.js";
     import indexBased from "../tests/tfs-test/allIndexBased.js";
-    // More tests
+
+    // Indicator tests
     import indicators from "../tests/indicators/indicators.js";
+
+    // Tool tests
     import rangeTool from "../tests/tools/rangeTool.js";
     import lineTool from "../tests/tools/lineTool.js";
     import watchPropTest from "../tests/navy/watchPropTest.js";
 
-    // More tests
+    // Scale related tests
     import logScaleTest from "../tests/scales/logScale.js";
+
+    // Memory leak tests
     import memoryTest from "../tests/memory/memoryTest.js";
 
-    // Live data
+    // Real-time data stream and utilities
     import { DataLoader } from "../tests/real-time/lib/dataLoader.js";
     import wsx from "../tests/real-time/lib/wsx.js";
     import sampler from "../tests/real-time/lib/ohlcvSampler.js";
 
+    // Heatmap script for visualisation
     import heatmapScript from "./scripts/heatmap.navy";
 
     /*
@@ -52,30 +69,35 @@
 
     // TODO: Memory leak tests
 
+    // Initialize the test stack and charting instance
     let stack = new TestStack();
     let chart = null;
     let data = [];
 
-    //data.indexBased = true
-
     onMount(() => {
+        /**
+         * Initialize the NightVision chart and data loader and component mount
+         */
         chart = new NightVision("chart-container", {
             data: data,
             autoResize: true,
-            //indexBased: true
+            indexBased: false,
         });
         //chart.data = data2
 
         let dl = new DataLoader();
 
-        // Load the first piece of the data
+        // Load the initial data
         dl.load((data) => {
             chart.data = data; // Set the initial data
             chart.fullReset(); // Reset tre time-range
-            chart.se.uploadAndExec(); // Upload & exec scripts
+            chart.se.uploadAndExec(); // Upload and exec scripts
         });
 
-        function loadMore() {      
+        /**
+         * Functon to load more data as the user scrolls left or more data becomes available
+         */
+        function loadMore() {
             if (!chart.hub.mainOv) {
                 setTimeout(update, 100); // Retry after a short delay
                 return;
@@ -84,42 +106,39 @@
             let t0 = data[0][0];
             if (chart.range[0] < t0) {
                 dl.loadMore(t0 - 1, (chunk) => {
-                    // Add a new chunk at the beginning
+                    // Prepend a new chunk at the beginning
                     data.unshift(...chunk);
-                    // Yo need to update "data"
-                    // when the data range is changed
-                    chart.update("data");
-                    chart.se.uploadAndExec();
+                    chart.update("data"); // Update the chart
+                    chart.se.uploadAndExec(); // Execute the scripts through ScriptEngine
                 });
             }
         }
 
-        // Send an update to the script engine
+        /**
+         * Updates the chart's script engine periodically based on the data subset size.
+         */
         async function update() {
             if (!chart.hub.mainOv) {
                 setTimeout(update, 100); // Retry after a short delay
                 return;
             }
             await chart.se.updateData();
-            var delay; // Floating update rate
-            if (chart.hub.mainOv.dataSubset.length < 1000) {
-                delay = 10;
-            } else {
-                delay = 1000;
-            }
+            var delay = chart.hub.mainOv.dataSubset.length < 1000 ? 10 : 1000; // Floating update rate
             setTimeout(update, delay);
-    }
+        }
 
         // Load new data when user scrolls left
         chart.events.on("app:$range-update", loadMore);
 
-        // Plus check for updates every second
+        // Check for updates periodically
         setInterval(loadMore, 500);
 
         // TA + chart update loop
         setTimeout(update, 0);
 
-        // Setup a trade data stream
+        /**
+         * Sets up a trade data stream and updates the chart with new trade information.
+         */
         wsx.init([dl.SYM]);
         wsx.ontrades = (d) => {
             if (!chart.hub.mainOv) return;
@@ -133,12 +152,14 @@
                 chart.scroll(); // Scroll forward
             }
         };
+
+        // Expose the objects to the gloabal scope for debugging
         window.wsx = wsx;
         window.chart = chart;
         window.stack = stack;
 
+        // Groug and execute test suites
         stack.setGroup("data-sync");
-
         fullReset(stack, chart);
         paneAddRem(stack, chart);
         paneSettings(stack, chart);
@@ -189,13 +210,13 @@
 </div>
 
 <style>
-    .app {
-        /* width: 1080px; */
-        /* height: 720px; */
-        /* margin: 0 auto; */
-        /* position: relative; */
-        /* overflow: hidden; */
-    }
+    /* .app { */
+    /*     width: 1080px; */
+    /*     height: 720px; */
+    /*     margin: 0 auto; */
+    /*     position: relative; */
+    /*     overflow: hidden; */
+    /* } */
 
     #chart-container {
         position: absolute;
