@@ -38,16 +38,7 @@ class DataLoader {
                             name: "LineTool",
                             type: "LineTool",
                             drawingTool: true,
-                            data: [
-                                {
-                                    type: "segment",
-                                    p1: [1702108800000, 73.05],
-                                    p2: [1702296000000, 75.23],
-                                    uuid: "6822450897812908",
-                                    color: "#dc9800",
-                                    lineWidth: "1",
-                                },
-                            ],
+                            data: [],
                             props: {},
                             settings: {
                                 zIndex: 1000,
@@ -57,15 +48,7 @@ class DataLoader {
                             name: "LineToolHorizontalRay",
                             type: "LineToolHorizontalRay",
                             drawingTool: true,
-                            data: [
-                                {
-                                    type: "ray",
-                                    p1: [1702108800000, 71.05],
-                                    uuid: "123",
-                                    color: "#dc9800",
-                                    lineWidth: "1",
-                                },
-                            ],
+                            data: [],
                             props: {},
                             settings: {
                                 zIndex: 1000,
@@ -78,6 +61,38 @@ class DataLoader {
                         {
                             type: "MACD",
                         },
+                    ], overlays: [
+                        // Add drawing tools here
+                        {
+                            name: "RangeTool",
+                            type: "RangeTool",
+                            drawingTool: true,
+                            data: [],
+                            props: {},
+                            settings: {
+                                zIndex: 1000,
+                            },
+                        },
+                        {
+                            name: "LineTool",
+                            type: "LineTool",
+                            drawingTool: true,
+                            data: [],
+                            props: {},
+                            settings: {
+                                zIndex: 1000,
+                            },
+                        }, {
+                            name: "LineToolHorizontalRay",
+                            type: "LineToolHorizontalRay",
+                            drawingTool: true,
+                            data: [
+                            ],
+                            props: {},
+                            settings: {
+                                zIndex: 1000,
+                            },
+                        },
                     ],
                 },
                 {
@@ -85,6 +100,37 @@ class DataLoader {
                     scripts: [
                         {
                             type: "Stoch",
+                        },
+                    ], overlays: [
+                        // Add drawing tools here
+                        {
+                            name: "RangeTool",
+                            type: "RangeTool",
+                            drawingTool: true,
+                            data: [],
+                            props: {},
+                            settings: {
+                                zIndex: 1000,
+                            },
+                        },
+                        {
+                            name: "LineTool",
+                            type: "LineTool",
+                            drawingTool: true,
+                            data: [],
+                            props: {},
+                            settings: {
+                                zIndex: 1000,
+                            },
+                        }, {
+                            name: "LineToolHorizontalRay",
+                            type: "LineToolHorizontalRay",
+                            drawingTool: true,
+                            data: [],
+                            props: {},
+                            settings: {
+                                zIndex: 1000,
+                            },
                         },
                     ],
                 },
