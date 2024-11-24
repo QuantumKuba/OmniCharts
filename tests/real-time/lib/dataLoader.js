@@ -64,6 +64,11 @@ class DataLoader {
                                 zIndex: 1000,
                             },
                         },
+                        {
+                            name: "Brush",
+                            type: "Brush",
+                            drawingTool: true,
+                        }
 
                     ],
                 }, {
@@ -103,7 +108,13 @@ class DataLoader {
                             settings: {
                                 zIndex: 1000,
                             },
-                        },
+                        }, {
+                            name: "Brush",
+                            type: "Brush",
+                            drawingTool: true,
+                        }
+
+
                     ],
                 }, {
                     // Separate pane for Stochastic Oscillator
@@ -141,7 +152,13 @@ class DataLoader {
                             settings: {
                                 zIndex: 1000,
                             },
-                        },
+                        }, {
+                            name: "Brush",
+                            type: "Brush",
+                            drawingTool: true,
+                        }
+
+
                     ],
                 },
             ], tools: [
