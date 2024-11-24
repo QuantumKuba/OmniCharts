@@ -16,6 +16,16 @@ class DataLoader {
         callback({
             panes: [
                 {
+                    scripts: [{
+                        name: "BB",
+                        type: "BB",
+                        data: data.map((x) => this.format(x)),
+                        props: {
+                            length: 21, // Adjust the period as needed
+                            stddev: 2, // Adjust the standard deviation as needed
+                            color: "#2cc6c9ab", // Customize the color
+                        },
+                    }],
                     overlays: [
                         {
                             name: "BTC / Tether US",
@@ -54,6 +64,7 @@ class DataLoader {
                                 zIndex: 1000,
                             },
                         },
+
                     ],
                 }, {
                     // Separate pane for MACD
@@ -94,8 +105,7 @@ class DataLoader {
                             },
                         },
                     ],
-                },
-                {
+                }, {
                     // Separate pane for Stochastic Oscillator
                     scripts: [
                         {
