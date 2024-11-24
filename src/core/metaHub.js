@@ -148,11 +148,16 @@ class MetaHub {
      * Removes all tools from the overlays and reset the drawing mode.
      */
     removeAllTools = () => {
-        for (const drawingOverlay of this.hub.data.panes[0].overlays) {
-            if (drawingOverlay.drawingTool) {
-                drawingOverlay.data = [];
-                drawingOverlay.dataExt = {};
+        for (const pane of this.hub.data.panes) {
+            if (!pane.overlays) continue;
+
+            for (const drawingOverlay of pane.overlays) {
+                if (drawingOverlay.drawingTool) {
+                    drawingOverlay.data = [];
+                    drawingOverlay.dataExt = {};
+                }
             }
+
         }
 
         this.drawingModeOff();
