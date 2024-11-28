@@ -1,0 +1,86 @@
+// Navy ~ 0.2-lite
+// <ds>ZLEMA Zero Lag EMA</ds>
+
+[INDICATOR name = ZLEMA, version = 1.0.0]
+
+// Define properties (inputs)
+prop('length', { type: 'integer', def: 21, label: 'Period' });
+prop('color', { type: 'color', def: '#FFA500', label: 'ZLEMA Color' }); // Orange color
+prop('prec', { type: 'integer', def: autoPrec(), label: 'Precision' }); // Precision
+prop('zIndex', { type: 'integer', def: 0, label: 'Layering Order' });   // Layering order
+
+// Define specifications for plotting the ZLEMA line
+this.specs = {
+    name: `ZLEMA ${$props.length}`,
+    props: {
+        color: $props.color,
+    },
+    settings: {
+        precision: $props.prec,
+        zIndex: $props.zIndex,
+    },
+};
+
+// Reference Spline function from the appropriate scope
+const Spline = this.Spline;
+
+// Define helper functions at the top level
+function offset(src, lag) {
+    let shifted = [];
+    for (let i = 0; i < src.length; i++) {
+        shifted[i] = src[i + lag] !== undefined ? src[i + lag] : NaN;
+    }
+    return shifted;
+}
+
+function ema(src, length) {
+    let alpha = 2 / (length + 1);
+    let ema_ts = [];
+    for (let i = src.length - 1; i >= 0; i--) {
+        if (i == src.length - 1) {
+            ema_ts[i] = src[i];
+        } else {
+            ema_ts[i] = alpha * src[i] + (1 - alpha) * ema_ts[i + 1];
+        }
+    }
+    return ema_ts;
+}
+
+[UPDATE]
+
+// Ensure 'close' is defined
+if (!close) {
+    console.error('Missing close data from ohlcv dataset');
+    return;
+}
+
+// Extract properties for easier reference
+let length = $props.length;
+let lag = Math.round((length - 1) / 2);
+
+// 'close' is a time-series (array)
+let src = close;
+
+// Compute the shifted version of 'src' by 'lag' periods
+let src_shifted = offset(src, lag); // 'offset' function shifts the time-series
+
+// Handle NaN values for the initial periods
+// Replace NaN values in src_shifted with the current src value
+for (let i = 0; i < src_shifted.length; i++) {
+    if (isNaN(src_shifted[i])) {
+        src_shifted[i] = src[i];
+    }
+}
+
+// Compute ema_input as a time-series
+// ema_input = 2 * src - src_shifted
+let ema_input = []; // Initialize an array for ema_input
+for (let i = 0; i < src.length; i++) {
+    ema_input[i] = 2 * src[i] - src_shifted[i];
+}
+
+// Compute ZLEMA as EMA of 'ema_input'
+let zlema_ts = ema(ema_input, length);
+
+// Plot the ZLEMA line using 'Spline'
+Spline(zlema_ts, this.specs);

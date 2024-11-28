@@ -57,6 +57,8 @@
 
     // Heatmap script for visualisation
     import heatmapScript from "./scripts/heatmap.navy";
+    import ZLEMA from "./scripts/indicators/ZLEMA.navy";
+    import SymbolSidebar from "./components/SymbolSidebar.svelte";
 
     /*
     TODO: data-api interface:
@@ -73,6 +75,29 @@
     let stack = new TestStack();
     let chart = null;
     let data = [];
+    let dl = null;
+    let currentSymbol = "BTCUSDT";
+
+    const handleSymbolChange = (event) => {
+        currentSymbol = event.detail.symbol;
+        dl.SYM = currentSymbol;
+        reloadData();
+    };
+    function reloadData() {
+        // Clear existing data
+        chart.data = [];
+        chart.update("data");
+
+        // Load the initial data for the new symbol
+        dl.load((data) => {
+            chart.data = data; // Set the new data
+            chart.fullReset(); // Reset the time-range
+            chart.se.uploadAndExec(); // Upload and exec scripts
+        });
+
+        // Reinitialize the real-time data stream
+        wsx.init([dl.SYM]);
+    }
 
     onMount(() => {
         /**
@@ -85,7 +110,7 @@
         });
         //chart.data = data2
 
-        let dl = new DataLoader();
+        let dl = new DataLoader(currentSymbol);
 
         // Load the initial data
         dl.load((data) => {
@@ -207,6 +232,7 @@
 
 <div class="app">
     <div id="chart-container"></div>
+    <SymbolSidebar on:symbolSelected={handleSymbolChange} />
 </div>
 
 <style>

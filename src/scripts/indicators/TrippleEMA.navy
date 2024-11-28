@@ -1,0 +1,60 @@
+// Navy ~ 0.2-lite
+// <ds>Exponential Moving Average</ds>
+
+[INDICATOR name = TrippleEMA, version = 1.0.0]
+
+// Define properties (inputs) for multiple EMAs
+prop('length1', { type: 'integer', def: 9, label: 'Period 1' })
+prop('color1', { type: 'color', def: '#FF0000', label: 'Color 1' }) // Red
+prop('length2', { type: 'integer', def: 21, label: 'Period 2' })
+prop('color2', { type: 'color', def: '#00FF00', label: 'Color 2' }) // Green
+prop('length3', { type: 'integer', def: 50, label: 'Period 3' })
+prop('color3', { type: 'color', def: '#0000FF', label: 'Color 3' }) // Blue
+prop('prec', { type: 'integer', def: autoPrec(), label: 'Precision' })
+prop('zIndex', { type: 'integer', def: 0, label: 'Layering Order' })
+
+// Define specifications for each EMA line
+this.specs1 = {
+  name: `EMA ${$props.length1}`,
+  props: {
+    color: $props.color1,
+  },
+  settings: {
+    precision: $props.prec,
+    zIndex: $props.zIndex
+  }
+}
+
+this.specs2 = {
+  name: `EMA ${$props.length2}`,
+  props: {
+    color: $props.color2,
+  },
+  settings: {
+    precision: $props.prec,
+    zIndex: $props.zIndex
+  }
+}
+
+this.specs3 = {
+  name: `EMA ${$props.length3}`,
+  props: {
+    color: $props.color3,
+  },
+  settings: {
+    precision: $props.prec,
+    zIndex: $props.zIndex
+  }
+}
+
+[UPDATE]
+
+// Compute and plot each EMA
+let ema1 = ema(close, $props.length1)
+Spline(ema1, this.specs1)
+
+let ema2 = ema(close, $props.length2)
+Spline(ema2, this.specs2)
+
+let ema3 = ema(close, $props.length3)
+Spline(ema3, this.specs3)
