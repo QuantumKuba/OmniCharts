@@ -1,6 +1,6 @@
 // Make new candles from trade stream
 
-export default function sample(ohlcv, trade, tf = 60000) {
+export default function sample(ohlcv, trade, tf = 300000) {
     let last = ohlcv[ohlcv.length - 1];
     if (!last) return;
     let tick = trade["price"];

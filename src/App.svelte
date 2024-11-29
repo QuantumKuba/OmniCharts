@@ -1,24 +1,11 @@
 <!-- App.svelte -->
 <script>
-    /**
-     * Main application component for rendering the NightVision chart and managing
-     * test suites, real-time data updates, and user interactions.
-     */
-
-    // Enables hot module replacement for development
-    import.meta.hot;
-
-    // Import core NightVision charting library and utilities
     import { NightVision } from "./index.js";
     import { onMount } from "svelte";
-    // import data from "../data/data-ohlcv-rsi.json?id=main";
-    // import data2 from "../data/data-area.json?id=main-2";
-    // import data3 from "../data/data-aapl.json?id=main-3";
 
-    // Import test stack for managing autoated tests
     import TestStack from "../tests/testStack.js";
 
-    // Data sync tests
+    // Import various test suites
     import fullReset from "../tests/data-sync/fullReset.js";
     import paneAddRem from "../tests/data-sync/paneAddRem.js";
     import paneSettings from "../tests/data-sync/paneSettings.js";
@@ -29,70 +16,69 @@
     import ovPropsChange from "../tests/data-sync/ovPropsChange.js";
     import ovDataChange from "../tests/data-sync/ovDataChange.js";
 
-    // Real-time data tests
     import realTime from "../tests/real-time/realTime.js";
-
-    // Timeframe-based tests
     import timeBased from "../tests/tfs-test/allTimeBased.js";
     import indexBased from "../tests/tfs-test/allIndexBased.js";
-
-    // Indicator tests
     import indicators from "../tests/indicators/indicators.js";
-
-    // Tool tests
     import rangeTool from "../tests/tools/rangeTool.js";
     import lineTool from "../tests/tools/lineTool.js";
     import watchPropTest from "../tests/navy/watchPropTest.js";
-
-    // Scale related tests
     import logScaleTest from "../tests/scales/logScale.js";
-
-    // Memory leak tests
     import memoryTest from "../tests/memory/memoryTest.js";
 
-    // Real-time data stream and utilities
     import { DataLoader } from "../tests/real-time/lib/dataLoader.js";
     import wsx from "../tests/real-time/lib/wsx.js";
     import sampler from "../tests/real-time/lib/ohlcvSampler.js";
 
-    // Heatmap script for visualisation
     import heatmapScript from "./scripts/heatmap.navy";
     import ZLEMA from "./scripts/indicators/ZLEMA.navy";
     import SymbolSidebar from "./components/SymbolSidebar.svelte";
-
-    /*
-    TODO: data-api interface:
-    .getPanes()
-    .getAllOverlays()
-    .pane('main').getRenderers()
-    .pane(0).getOverlay('<name>').getRenderer() // id
-    ...
-    */
-
-    // TODO: Memory leak tests
 
     // Initialize the test stack and charting instance
     let stack = new TestStack();
     let chart = null;
     let data = [];
-    let dl = null;
+    let dl = null; // Global DataLoader variable
     let currentSymbol = "BTCUSDT";
+    let currentTimeframe = "5m"; // Default timeframe
 
+    // Handle symbol and timeframe selection from the sidebar
     const handleSymbolChange = (event) => {
-        currentSymbol = event.detail.symbol;
-        dl.SYM = currentSymbol;
-        reloadData();
+        const { symbol, timeframe } = event.detail;
+        currentSymbol = symbol;
+        currentTimeframe = timeframe;
+        if (dl) {
+            dl.SYM = currentSymbol;
+            dl.TF = currentTimeframe; // Update the timeframe
+            reloadData();
+        } else {
+            console.error("DataLoader is not initialized.");
+        }
     };
+
+    // Function to reload data based on the selected symbol and timeframe
     function reloadData() {
+        if (!dl) {
+            console.error("DataLoader is not initialized.");
+            return;
+        }
+
+        console.log(
+            `Reloading data for symbol: ${currentSymbol} with timeframe: ${dl.TF}`,
+        );
+
         // Clear existing data
         chart.data = [];
         chart.update("data");
 
-        // Load the initial data for the new symbol
-        dl.load((data) => {
-            chart.data = data; // Set the new data
-            chart.fullReset(); // Reset the time-range
-            chart.se.uploadAndExec(); // Upload and exec scripts
+        // Load the initial data for the new symbol and timeframe
+        dl.load((newData) => {
+            console.log(
+                `Data loaded for symbol: ${currentSymbol} with timeframe: ${dl.TF}`,
+            );
+            chart.data = newData;
+            chart.fullReset();
+            chart.se.uploadAndExec();
         });
 
         // Reinitialize the real-time data stream
@@ -101,26 +87,33 @@
 
     onMount(() => {
         /**
-         * Initialize the NightVision chart and data loader and component mount
+         * Initialize the NightVision chart and data loader on component mount
          */
         chart = new NightVision("chart-container", {
             data: data,
             autoResize: true,
             indexBased: false,
+            // timeframe: currentTimeframe, // Pass timeframe if required by the library
         });
-        //chart.data = data2
 
-        let dl = new DataLoader(currentSymbol);
+        // Initialize DataLoader with symbol and timeframe
+        dl = new DataLoader(currentSymbol, currentTimeframe);
+        console.log(
+            `DataLoader initialized for symbol: ${currentSymbol} with timeframe: ${currentTimeframe}`,
+        );
 
         // Load the initial data
-        dl.load((data) => {
-            chart.data = data; // Set the initial data
-            chart.fullReset(); // Reset tre time-range
-            chart.se.uploadAndExec(); // Upload and exec scripts
+        dl.load((initialData) => {
+            console.log(
+                `Initial data loaded for symbol: ${currentSymbol} with timeframe: ${dl.TF}`,
+            );
+            chart.data = initialData;
+            chart.fullReset();
+            chart.se.uploadAndExec();
         });
 
         /**
-         * Functon to load more data as the user scrolls left or more data becomes available
+         * Function to load more data as the user scrolls left or more data becomes available
          */
         function loadMore() {
             if (!chart.hub.mainOv) {
@@ -178,12 +171,12 @@
             }
         };
 
-        // Expose the objects to the gloabal scope for debugging
+        // Expose the objects to the global scope for debugging
         window.wsx = wsx;
         window.chart = chart;
         window.stack = stack;
 
-        // Groug and execute test suites
+        // Group and execute test suites
         stack.setGroup("data-sync");
         fullReset(stack, chart);
         paneAddRem(stack, chart);
@@ -236,17 +229,17 @@
 </div>
 
 <style>
-    /* .app { */
-    /*     width: 1080px; */
-    /*     height: 720px; */
-    /*     margin: 0 auto; */
-    /*     position: relative; */
-    /*     overflow: hidden; */
-    /* } */
+    .app {
+        display: flex;
+        height: 100vh;
+        width: 100vw;
+        position: relative;
+    }
 
     #chart-container {
         position: absolute;
         width: 100%;
         height: 100%;
+        z-index: 500; /* Ensures chart is below the sidebar */
     }
 </style>

@@ -2,7 +2,7 @@ class DataLoader {
     constructor(symbol = 'BTCUSDT') {
         this.URL = "https://api1.binance.com/api/v3/klines";
         this.SYM = symbol;
-        this.TF = "1m"; // See binance api definitions
+        this.TF = "5m"; // See binance api definitions
 
         this.loading = false;
     }
@@ -39,6 +39,10 @@ class DataLoader {
                             main: true,
                             data: data.map((x) => this.format(x)),
                             props: {},
+                            settings: {
+                                zIndex: 100,
+                                timeFrame: this.FT,
+                            },
                         },
                         {
                             name: "RangeTool",
