@@ -17,18 +17,23 @@ function now() {
 }
 
 async function init(syms) {
-
-    if (ready) return
-
-    symbols = syms
-    start_hf(symbols)
-
+    // If we already have an active connection, properly terminate it first
+    if (ws) {
+        // Properly close any existing WebSocket
+        terminate();
+        ready = false; // Reset the ready state for the new connection
+    }
+    
+    symbols = syms;
+    start_hf(symbols);
+    
     // If connection error, try again
-    setTimeout(() => init(symbols), 10000)
+    setTimeout(() => {
+        if (!ready) init(symbols);
+    }, 10000);
 }
 
 function start_hf() {
-
     // To subscribe to this channel:
     var msg = syms => ({
         'method': 'SUBSCRIBE',
@@ -36,18 +41,25 @@ function start_hf() {
         "id": 1
     })
 
+    // Create a new WebSocket connection
     ws = new WebSocket(`wss://stream.binance.com:9443/ws`);
+    
     ws.onmessage = function(e) {
         try {
             let data = JSON.parse(e.data)
             if (!data.s) return print(data)
             switch (data.e) {
                 case 'aggTrade':
-                    _ontrades({
-                        symbol: data.s.toUpperCase(),
-                        price: parseFloat(data.p),
-                        size: parseFloat(data.q),
-                    })
+                    // Only process trades for current symbols
+                    // Ensure case-insensitive comparison
+                    const dataSymbol = data.s.toUpperCase();
+                    if (symbols.some(s => s.toUpperCase() === dataSymbol)) {
+                        _ontrades({
+                            symbol: dataSymbol,
+                            price: parseFloat(data.p),
+                            size: parseFloat(data.q),
+                        })
+                    }
                     break
                 case 'ping':
                     console.log('PING', data)
@@ -59,26 +71,32 @@ function start_hf() {
             console.log(e.toString())
         }
     };
+    
     ws.onopen = function() {
         try {
-            let syms = symbols.map(x =>
-                x.toLowerCase() + "@aggTrade")
+            // Map symbols to lowercase and add @aggTrade suffix
+            let syms = symbols.map(x => x.toLowerCase() + "@aggTrade")
             console.log('SEND >>>', JSON.stringify(msg(syms)))
             ws.send(JSON.stringify(msg(syms)))
         } catch(e) {
             console.log(e.toString())
         }
     };
+    
     ws.onclose = function (e) {
-        switch (e) {
+        switch (e.code) {
             case 1000:
-                console.log("WebSocket: closed");
-            break;
+                console.log("WebSocket: closed normally");
+                break;
+            default:
+                console.log(`WebSocket closed with code: ${e.code}, reason: ${e.reason}`);
+                break;
         }
         //reconnect();
     };
+    
     ws.onerror = function (e) {
-        console.log("WS", e);
+        console.log("WebSocket error:", e);
         reconnect();
     };
 }
@@ -133,8 +151,21 @@ function heartbeat() {
 }
 
 function terminate() {
-    ws.close()
-    terminated = true
+    if (ws && ws.readyState !== WebSocket.CLOSED) {
+        try {
+            ws.close();
+        } catch (e) {
+            console.log("Error closing WebSocket:", e);
+        }
+    }
+    terminated = true;
+    ready = false;
+    reconnecting = false;
+    
+    // Reset to allow new connections
+    setTimeout(() => {
+        terminated = false;
+    }, 500);
 }
 
 export default {
@@ -268,7 +299,6 @@ function heartbeat() {
   } else {
     setTimeout(heartbeat, 1000);
   }
-}
 
 module.exports = {
   init,

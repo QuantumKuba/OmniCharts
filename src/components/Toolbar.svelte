@@ -7,6 +7,7 @@
     export let props = {};
     export let layout = {};
     export let main = {};
+    export let side = 'left'; // Add the side prop with default value
 
     let events = Events.instance(props.id);
     let meta = MetaHub.instance(props.id);
@@ -53,13 +54,13 @@
     const tools = generateTools();
 
     $:toolbarStyle = `
-        left: 0;
+        ${side === 'left' ? 'left: 0;' : 'right: 0;'}
         top: 0;
         position: absolute;
         background: ${props.colors.back};
         height: 100%;
         width: ${toolbarWidth};
-        border-right: ${b}px ${st} ${brd}
+        border-${side === 'left' ? 'right' : 'left'}: ${b}px ${st} ${brd}
     `;
 
     events.on('toolbar:tool-selected', (event) => {

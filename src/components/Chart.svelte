@@ -71,6 +71,7 @@ events.on('chart:cursor-locked', onCursorLocked)
 events.on('chart:range-changed', onRangeChanged)
 events.on('chart:update-layout', update)
 events.on('chart:full-update', fullUpdate)
+events.on('chart:symbol-changed', onSymbolChanged)
 
 onMount(() => {
     hub.calcSubset(range)
@@ -180,6 +181,34 @@ function fullUpdate(opt = {}) {
 function rangeUpdate($range) {
     range = $range
     chartProps.range = range // Instant update
+}
+
+// Handler for symbol/timeframe changes - forces a complete redraw
+function onSymbolChanged() {
+    // Increment chartRR to force a complete component redraw
+    chartRR++;
+    
+    // Reset meta and force recalculation
+    meta.yTransforms = [];
+    meta.storage = {};
+    meta.init(props);
+    
+    // Completely rebuild the layout
+    layout = new Layout(chartProps, hub, meta);
+    
+    // Reset and update all components
+    events.emit('remake-grid');
+    
+    // Force sidebar updates by sending specific sidebar symbol-changed events
+    setTimeout(() => {
+        const sidebars = document.querySelectorAll('.nvjs-sidebar');
+        sidebars.forEach(sidebar => {
+            const id = sidebar.id.split('-')[2]; // Extract pane ID
+            const side = sidebar.id.split('-')[4]; // Extract side (left/right)
+            events.emitSpec(`sb-${id}-${side}`, 'symbol-changed');
+            events.emitSpec(`sb-${id}-${side}`, 'update-sb', layout);
+        });
+    }, 50);
 }
 
 </script>

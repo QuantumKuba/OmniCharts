@@ -1,4 +1,3 @@
-
 // Script engine, Fuck yeah
 
 import ScriptEnv from './script_env.js'
@@ -131,69 +130,94 @@ class ScriptEngine {
 
     // Live update
     update(candles, e) {
-        if (!this.data.ohlcv || !this.data.ohlcv.data.length) {
-            return this.send_update(e.data.id)
+        // Check if we have valid data and send update right away if not
+        if (!this.data.ohlcv || !this.data.ohlcv.data || !this.data.ohlcv.data.length) {
+            return this.send_update(e?.data?.id);
         }
-
+        
+        // If we're already running another update, queue this one
         if (this.running) {
-            this.update_queue.push([candles, e])
-            return
+            this.update_queue.push([candles, e]);
+            return;
         }
-
-        if (!this.shared) return // Not initialized yet
-
-        let mfs1 = this.make_mods_hooks('pre_step')
-        let mfs2 = this.make_mods_hooks('post_step')
-
+        
+        // If the shared context isn't initialized yet, we can't process updates
+        if (!this.shared) {
+            return this.send_update(e?.data?.id);
+        }
+        
+        // Prepare module hooks
+        let mfs1 = this.make_mods_hooks('pre_step');
+        let mfs2 = this.make_mods_hooks('post_step');
+        
+        // Create step function with safety checks
         let step = (sel, unshift) => {
-            for (var m = 0; m < mfs1.length; m++) {
-                mfs1[m](sel) // pre_step
+            try {
+                // Run pre-step hooks
+                for (var m = 0; m < mfs1.length; m++) {
+                    mfs1[m](sel);
+                }
+                
+                // Process each script
+                for (var id of sel) {
+                    if (this.map[id] && this.map[id].env) {
+                        this.map[id].env.step(unshift);
+                    }
+                }
+                
+                // Run post-step hooks
+                for (var m = 0; m < mfs2.length; m++) {
+                    mfs2[m](sel);
+                }
+            } catch (err) {
+                console.warn("Error during step execution:", err);
             }
-
-            for (var id of sel) {
-                this.map[id].env.step(unshift)
-            }
-
-            for (var m = 0; m < mfs2.length; m++) {
-                mfs2[m](sel) // post_step
-            }
-        }
-
+        };
+        
         try {
-            let ohlcv = this.data.ohlcv.data
-            let i = ohlcv.length - 1
-            let last = ohlcv[i]
-            let sel = Object.keys(this.map)
-            let unshift = false
-            this.shared.event = 'update'
-
+            let ohlcv = this.data.ohlcv.data;
+            let i = ohlcv.length - 1;
+            let last = ohlcv[i];
+            let sel = Object.keys(this.map).filter(id => this.map[id] && this.map[id].env);
+            let unshift = false;
+            
+            // Skip if no valid scripts to process
+            if (!sel.length) {
+                return this.send_update(e?.data?.id);
+            }
+            
+            this.shared.event = 'update';
+            
             for (var candle of candles) {
                 if (candle[0] > last[0]) {
-                    this.shared.onclose = true
-                    step(sel, false) // On candle close
-                    ohlcv.push(candle)
-                    unshift = true
-                    i++
+                    this.shared.onclose = true;
+                    step(sel, false); // On candle close
+                    ohlcv.push(candle);
+                    unshift = true;
+                    i++;
                 } else if (candle[0] < last[0]) {
-                    continue
+                    continue;
                 } else {
-                    ohlcv[i] = candle
+                    ohlcv[i] = candle;
                 }
             }
-
-            this.iter = i
-            this.t = ohlcv[i][0]
-            this.step(ohlcv[i], unshift)
-
-            this.shared.onclose = false
-            step(sel, unshift)
-
-            this.limit()
-            this.send_update(e.data.id)
-            this.send_state()
-
+            
+            this.iter = i;
+            this.t = ohlcv[i][0];
+            
+            // Only proceed if all array data is properly initialized
+            if (this.open && this.high && this.low && this.close && this.vol) {
+                this.step(ohlcv[i], unshift);
+                this.shared.onclose = false;
+                step(sel, unshift);
+                this.limit();
+            }
+            
+            this.send_update(e?.data?.id);
+            this.send_state();
         } catch(err) {
-            console.log(err)
+            console.warn("Script engine update error:", err);
+            this.send_update(e?.data?.id);
         }
     }
 

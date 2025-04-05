@@ -1,9 +1,8 @@
 class DataLoader {
-    constructor(symbol = 'BTCUSDT') {
+    constructor(symbol = 'BTCUSDT', timeframe = '5m') {
         this.URL = "https://api1.binance.com/api/v3/klines";
         this.SYM = symbol;
-        this.TF = "5m"; // See binance api definitions
-
+        this.TF = timeframe; // Setting timeframe from constructor parameter
         this.loading = false;
     }
 
@@ -41,7 +40,7 @@ class DataLoader {
                             props: {},
                             settings: {
                                 zIndex: 100,
-                                timeFrame: this.FT,
+                                timeFrame: this.TF, // Set timeframe in settings
                             },
                         },
                         {
@@ -214,22 +213,45 @@ class DataLoader {
     async loadMore(endTime, callback) {
         if (this.loading) return;
         this.loading = true;
+        
+        // Construct the URL with proper parameters
         let url = `${this.URL}?symbol=${this.SYM}&interval=${this.TF}`;
         url += `&endTime=${endTime}`;
-        let result = await fetch(url);
-        let data = await result.json();
-        callback(data.map((x) => this.format(x)));
-        this.loading = false;
+        // Add limit parameter to fetch a sufficient number of candles
+        url += `&limit=500`;
+        
+        try {
+            console.log(`Fetching historical data for ${this.SYM} at time ${new Date(endTime).toISOString()}`);
+            let result = await fetch(url);
+            
+            if (!result.ok) {
+                throw new Error(`Failed to fetch historical data: ${result.status} ${result.statusText}`);
+            }
+            
+            let data = await result.json();
+            console.log(`Loaded ${data.length} historical candles`);
+            
+            // Only process if we received data
+            if (data && data.length > 0) {
+                callback(data.map((x) => this.format(x)));
+            } else {
+                console.warn("No historical data received from API");
+            }
+        } catch (error) {
+            console.error("Error loading historical data:", error);
+        } finally {
+            this.loading = false;
+        }
     }
 
     format(x) {
         return [
-            x[0],
-            parseFloat(x[1]),
-            parseFloat(x[2]),
-            parseFloat(x[3]),
-            parseFloat(x[4]),
-            parseFloat(x[7])
+            x[0], // timestamp
+            parseFloat(x[1]), // open
+            parseFloat(x[2]), // high
+            parseFloat(x[3]), // low
+            parseFloat(x[4]), // close
+            parseFloat(x[7])  // volume
         ];
     }
 }

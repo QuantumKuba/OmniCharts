@@ -50,6 +50,7 @@
     // EVENT INTERFACE
     events.on(`${sbUpdId}:update-sb`, update)
     events.on(`${sbUpdId}:show-sb-panel`, f => showPanel = f)
+    events.on(`${sbUpdId}:symbol-changed`, forceRedraw)
 
     $:sbStyle = `
     left: ${S * (layout.width + layout.sbMax[0] + props.offset)}px;
@@ -206,6 +207,31 @@
                 sb.panel(props, layout, scale, side, ctx)
             }
         }
+    }
+
+    // Force complete redraw when symbol changes
+    function forceRedraw() {
+        if (!canvas || !ctx) return;
+        
+        // Reset the canvas
+        dpr.resize(canvas, ctx, layout.sbMax[S], layout.height);
+        
+        // Reset scale and zoom
+        zoom = 1.0;
+        
+        // Force sidebar auto-scaling
+        if (scale) {
+            events.emit('sidebar-transform', {
+                gridId: id,
+                scaleId: scale.scaleSpecs.id,
+                zoom: 1.0,
+                auto: true,
+                updateLayout: true
+            });
+        }
+        
+        // Request a complete update
+        update(layout);
     }
 
 // Draw stuff from overlay scripts

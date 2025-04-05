@@ -40,11 +40,18 @@ class DataHub {
     // Update data on 'range-changed'. Should apply
     // filters only (not updating the full structure)
     updateRange(range) {
+        // Check if data.panes exists and is iterable
+        if (!this.data || !this.data.panes || !Array.isArray(this.data.panes)) {
+            return; // Skip processing if data structure is invalid
+        }
+        
         for (var pane of this.data.panes) {
+            if (!pane.overlays || !Array.isArray(pane.overlays)) continue;
+            
             for (var ov of pane.overlays) {
-                let off = ov.indexOffset
-                ov.dataView = this.filter(ov.data, range, off)
-                ov.dataSubset = ov.dataView.makeSubset()
+                let off = ov.indexOffset || 0;
+                ov.dataView = this.filter(ov.data || [], range, off);
+                ov.dataSubset = ov.dataView.makeSubset();
             }
         }
     }

@@ -224,12 +224,66 @@ class NightVision {
                     ev.emitSpec(gridId, 'update-legend', opt)
                 }
                 break
+            case 'symbol':
+                // Reset scales for symbol changes
+                this.resetScales()
+                this.update('full', {resetRange: true})
+                break
         }
     }
 
     // Reset everything
     fullReset() {
         this.update('full', {resetRange: true})
+    }
+    
+    // Reset scales and transform cache - important for symbol changes
+    resetScales() {
+        // Reset MetaHub's transform cache to force recalculation
+        this.meta.yTransforms = [];
+        this.meta.storage = {};
+        
+        // Reset the scales in grid maker to force recalculation
+        if (this.layout) {
+            this.layout.grids.forEach(grid => {
+                if (grid.scales) {
+                    // Force recalculation of scale values
+                    Object.keys(grid.scales).forEach(key => {
+                        const scale = grid.scales[key];
+                        if (scale) {
+                            // Force auto-scaling
+                            scale.scaleSpecs.autoScale = true;
+                            // Clear the calculated y-values
+                            if (scale.ys) scale.ys = [];
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Force sidebars to reset
+        const sidebars = document.querySelectorAll('.nvjs-sidebar');
+        sidebars.forEach(sidebar => {
+            // Extract pane ID and side
+            const parts = sidebar.id.split('-');
+            if (parts.length < 5) return;
+            
+            const id = parts[2]; // Extract pane ID
+            const side = parts[4]; // Extract side (left/right)
+            
+            // Force canvas clear
+            const canvasId = `${this.id}-sb-canvas-${id}-${side}`;
+            const canvas = document.getElementById(canvasId);
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        });
+        
+        // Force redraw of the chart
+        this.comp.chartRR++;
+        
+        return this;
     }
 
     // Go to time/index

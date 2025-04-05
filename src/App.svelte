@@ -29,6 +29,7 @@
     import { DataLoader } from "../tests/real-time/lib/dataLoader.js";
     import wsx from "../tests/real-time/lib/wsx.js";
     import sampler from "../tests/real-time/lib/ohlcvSampler.js";
+    import { tfToMs } from "../tests/real-time/lib/timeframeUtils.js";
 
     import heatmapScript from "./scripts/heatmap.navy";
     import ZLEMA from "./scripts/indicators/ZLEMA.navy";
@@ -62,27 +63,126 @@
             console.error("DataLoader is not initialized.");
             return;
         }
-
+        
         console.log(
             `Reloading data for symbol: ${currentSymbol} with timeframe: ${dl.TF}`,
         );
-
-        // Clear existing data
-        chart.data = [];
-        chart.update("data");
-
+        
+        // Stop any ongoing WebSocket updates before changing symbol
+        if (wsx) {
+            wsx.terminate(); // Properly terminate WebSocket connection
+        }
+        
+        // Clear the chart with an empty structure
+        chart.data = {
+            panes: [] // Empty panes array ensures it's iterable
+        };
+        
         // Load the initial data for the new symbol and timeframe
         dl.load((newData) => {
             console.log(
                 `Data loaded for symbol: ${currentSymbol} with timeframe: ${dl.TF}`,
             );
-            chart.data = newData;
-            chart.fullReset();
-            chart.se.uploadAndExec();
+            
+            // Update data with the symbol name in the main overlay
+            if (newData.panes && newData.panes.length > 0 && 
+                newData.panes[0].overlays && newData.panes[0].overlays.length > 0) {
+                
+                // Update the name of the main overlay to reflect current symbol
+                const mainOverlay = newData.panes[0].overlays.find(o => o.main);
+                if (mainOverlay) {
+                    mainOverlay.name = `${currentSymbol} / Tether US`;
+                    
+                    // Force auto-scaling for the new price range
+                    if (!mainOverlay.settings) mainOverlay.settings = {};
+                    mainOverlay.settings.autoScale = true;
+                }
+                
+                // Reset scales in all panes
+                newData.panes.forEach(pane => {
+                    if (!pane.settings) pane.settings = {};
+                    
+                    // Clear any stored scale settings to ensure fresh scaling
+                    pane.settings.scales = {};
+                });
+            }
+            
+            // Create a fresh chart instance
+            const container = document.getElementById('chart-container');
+            if (container) {
+                // Clear the container
+                container.innerHTML = '';
+                
+                // Create a new NightVision instance
+                chart = new NightVision("chart-container", {
+                    data: newData,
+                    autoResize: true,
+                    indexBased: false
+                });
+                
+                // Re-define the update function
+                async function update() {
+                    if (!chart.hub.mainOv) {
+                        setTimeout(update, 100); // Retry after a short delay
+                        return;
+                    }
+                    
+                    // Add additional check to prevent the error when dataSubset is null
+                    if (!chart.hub.mainOv.dataSubset) {
+                        setTimeout(update, 100); // Retry after a short delay
+                        return;
+                    }
+                    
+                    await chart.se.updateData();
+                    
+                    // Guard against potential null values after async operation
+                    const dataSubsetLength = chart.hub.mainOv?.dataSubset?.length || 0;
+                    var delay = dataSubsetLength < 1000 ? 10 : 1000; // Floating update rate
+                    
+                    setTimeout(update, delay);
+                }
+                
+                // Use the global loadMore function for range updates
+                chart.events.on("app:$range-update", window.loadMore || loadMore);
+                
+                // Execute scripts
+                chart.se.uploadAndExec();
+                
+                // Re-establish the global reference
+                window.chart = chart;
+                
+                // Start the update loop
+                setTimeout(update, 100);
+                
+                // Allow a brief delay before initializing the WebSocket with the CURRENT symbol
+                // This is crucial - we need to use the current symbol's value, not rely on
+                // the symbol stored in dl.SYM which might be incorrect
+                setTimeout(() => {
+                    // Explicitly initialize WebSocket with the current symbol
+                    console.log(`Initializing WebSocket for symbol: ${currentSymbol}`);
+                    wsx.init([currentSymbol]);
+                    
+                    // Re-establish the trade handling
+                    wsx.ontrades = (d) => {
+                        if (!chart.hub.mainOv) return;
+                        let data = chart.hub.mainOv.data;
+                        let trade = {
+                            price: d.price,
+                            volume: d.price * d.size,
+                        };
+                        
+                        // Convert the current timeframe string to milliseconds
+                        const tfMs = tfToMs(currentTimeframe);
+                        
+                        // Pass the correct timeframe in milliseconds to the sampler
+                        if (sampler(data, trade, tfMs)) {
+                            chart.update("data"); // New candle
+                            chart.scroll(); // Scroll forward
+                        }
+                    };
+                }, 500);
+            }
         });
-
-        // Reinitialize the real-time data stream
-        wsx.init([dl.SYM]);
     }
 
     onMount(() => {
@@ -117,20 +217,33 @@
          */
         function loadMore() {
             if (!chart.hub.mainOv) {
-                setTimeout(update, 100); // Retry after a short delay
+                setTimeout(loadMore, 100); // Retry after a short delay
                 return;
             }
+            
             let data = chart.hub.mainOv.data;
+            if (!data || data.length === 0) return;
+            
             let t0 = data[0][0];
             if (chart.range[0] < t0) {
+                console.log(`Requesting historical data before ${new Date(t0).toISOString()}`);
+                
                 dl.loadMore(t0 - 1, (chunk) => {
-                    // Prepend a new chunk at the beginning
-                    data.unshift(...chunk);
-                    chart.update("data"); // Update the chart
-                    chart.se.uploadAndExec(); // Execute the scripts through ScriptEngine
+                    if (chunk && chunk.length > 0) {
+                        console.log(`Adding ${chunk.length} historical candles to chart`);
+                        // Prepend a new chunk at the beginning
+                        data.unshift(...chunk);
+                        chart.update("data"); // Update the chart
+                        chart.se.uploadAndExec(); // Execute the scripts through ScriptEngine
+                    } else {
+                        console.warn("No historical data received to load");
+                    }
                 });
             }
         }
+
+        // Only define loadMore once - remove the duplicate definition in reloadData
+        window.loadMore = loadMore; // Make it available globally for debugging
 
         /**
          * Updates the chart's script engine periodically based on the data subset size.
@@ -140,16 +253,27 @@
                 setTimeout(update, 100); // Retry after a short delay
                 return;
             }
+            
+            // Add additional check to prevent the error when dataSubset is null
+            if (!chart.hub.mainOv.dataSubset) {
+                setTimeout(update, 100); // Retry after a short delay
+                return;
+            }
+            
             await chart.se.updateData();
-            var delay = chart.hub.mainOv.dataSubset.length < 1000 ? 10 : 1000; // Floating update rate
+            
+            // Guard against potential null values after async operation
+            const dataSubsetLength = chart.hub.mainOv?.dataSubset?.length || 0;
+            var delay = dataSubsetLength < 1000 ? 10 : 1000; // Floating update rate
+            
             setTimeout(update, delay);
         }
 
         // Load new data when user scrolls left
         chart.events.on("app:$range-update", loadMore);
 
-        // Check for updates periodically
-        setInterval(loadMore, 500);
+        // Check for updates periodically but less frequently to avoid API rate limits
+        setInterval(loadMore, 2000);
 
         // TA + chart update loop
         setTimeout(update, 0);
@@ -165,7 +289,12 @@
                 price: d.price,
                 volume: d.price * d.size,
             };
-            if (sampler(data, trade)) {
+            
+            // Convert the current timeframe string to milliseconds
+            const tfMs = tfToMs(currentTimeframe);
+            
+            // Pass the correct timeframe in milliseconds to the sampler
+            if (sampler(data, trade, tfMs)) {
                 chart.update("data"); // New candle
                 chart.scroll(); // Scroll forward
             }
