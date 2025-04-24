@@ -185,13 +185,25 @@ function rangeUpdate($range) {
 
 // Handler for symbol/timeframe changes - forces a complete redraw
 function onSymbolChanged() {
+    // Save the current tool state before resetting
+    const currentTool = meta.tool;
+    const currentSelectedTool = meta.selectedTool;
+    const currentDrawingMode = meta.drawingMode;
+    const currentMagnet = meta.magnet;
+    
     // Increment chartRR to force a complete component redraw
     chartRR++;
     
-    // Reset meta and force recalculation
+    // Reset meta but preserve specific tool states
     meta.yTransforms = [];
     meta.storage = {};
     meta.init(props);
+    
+    // Restore tool states
+    meta.tool = currentTool;
+    meta.selectedTool = currentSelectedTool;
+    meta.drawingMode = currentDrawingMode;
+    meta.magnet = currentMagnet;
     
     // Completely rebuild the layout
     layout = new Layout(chartProps, hub, meta);
@@ -199,8 +211,9 @@ function onSymbolChanged() {
     // Reset and update all components
     events.emit('remake-grid');
     
-    // Force sidebar updates by sending specific sidebar symbol-changed events
+    // Force sidebar and toolbar updates
     setTimeout(() => {
+        // Update sidebars
         const sidebars = document.querySelectorAll('.nvjs-sidebar');
         sidebars.forEach(sidebar => {
             const id = sidebar.id.split('-')[2]; // Extract pane ID
@@ -208,6 +221,14 @@ function onSymbolChanged() {
             events.emitSpec(`sb-${id}-${side}`, 'symbol-changed');
             events.emitSpec(`sb-${id}-${side}`, 'update-sb', layout);
         });
+        
+        // Update toolbar and drawing tools state
+        events.emit('toolbar:refresh');
+        
+        // Ensure active tool is still selected in toolbar
+        if (currentTool && currentTool !== 'Cursor') {
+            events.emit('meta:tool-selected', { type: currentTool });
+        }
     }, 50);
 }
 

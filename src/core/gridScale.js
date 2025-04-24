@@ -1,4 +1,3 @@
-
 // Grid scale is a part of layout that can vary
 // depending on overlay (values that correspond to y-axis)
 
@@ -78,7 +77,8 @@ export default function Scale(id, src, specs) {
         for (var ov of ovs) {
             if (ov.settings.display === false) continue
             let yfn = (meta.yRangeFns[gridId] || [])[ov.id]
-            let yfnStatic = prefabs[ov.type].static.yRange 
+            let yfnStatic = prefabs[ov.type] && prefabs[ov.type].static ? 
+                            prefabs[ov.type].static.yRange : undefined 
             if (yfnStatic) {
                 yfn = { 
                     exec: yfnStatic,
@@ -152,7 +152,8 @@ export default function Scale(id, src, specs) {
 
         // Sample N random elements from the current subset
         let f = meta.getPreSampler(gridId, ov.id)
-        f = f || prefabs[ov.type].static.preSampler 
+        f = f || (prefabs[ov.type] && prefabs[ov.type].static ? 
+                 prefabs[ov.type].static.preSampler : undefined)
         f = f || Utils.defaultPreSampler
         for (var i = 0; i < SAMPLE; i++) {
             // Random element n

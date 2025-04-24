@@ -1,5 +1,6 @@
 <script>
     import { createEventDispatcher } from 'svelte';
+    import { slide } from 'svelte/transition';
     
     // Define available symbols and timeframes
     const symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'SOLUSDT'];
@@ -29,14 +30,14 @@
     const dispatch = createEventDispatcher();
     
     // Function to handle symbol selection
-    function handleSymbolChange(event) {
-        selectedSymbol = event.target.value;
+    function selectSymbol(symbol) {
+        selectedSymbol = symbol;
         dispatchSelection();
     }
     
     // Function to handle timeframe selection
-    function handleTimeframeChange(event) {
-        selectedTimeframe = event.target.value;
+    function selectTimeframe(timeframe) {
+        selectedTimeframe = timeframe;
         dispatchSelection();
     }
     
@@ -47,87 +48,216 @@
             timeframe: selectedTimeframe
         });
     }
+
+    // Toggle dropdown for symbol selection
+    let showSymbolDropdown = false;
+    function toggleSymbolDropdown() {
+        showSymbolDropdown = !showSymbolDropdown;
+        if (showSymbolDropdown) {
+            showTimeframeDropdown = false;
+        }
+    }
+
+    // Close dropdown when clicking outside
+    function handleClickOutside(event) {
+        const target = event.target;
+        if (!target.closest('.symbol-selector') && showSymbolDropdown) {
+            showSymbolDropdown = false;
+        }
+        if (!target.closest('.timeframe-selector') && showTimeframeDropdown) {
+            showTimeframeDropdown = false;
+        }
+    }
+
+    // Toggle dropdown for timeframe selection
+    let showTimeframeDropdown = false;
+    function toggleTimeframeDropdown() {
+        showTimeframeDropdown = !showTimeframeDropdown;
+        if (showTimeframeDropdown) {
+            showSymbolDropdown = false;
+        }
+    }
 </script>
 
-<div class="sidebar">
-    <div class="logo">
-        <h3>OmniCharts</h3>
-    </div>
-    
-    <div class="controls">
-        <div class="control-group">
-            <label for="symbol-select">Symbol</label>
-            <select id="symbol-select" bind:value={selectedSymbol} on:change={handleSymbolChange}>
-                {#each symbols as symbol}
-                    <option value={symbol}>{symbol}</option>
-                {/each}
-            </select>
+<svelte:window on:click={handleClickOutside}/>
+
+<div class="chart-controls">
+    <div class="chart-control-group">
+        <!-- Symbol Selector -->
+        <div class="symbol-selector">
+            <button class="selected-item" on:click={toggleSymbolDropdown}>
+                <span class="symbol-name">{selectedSymbol}</span>
+                <span class="dropdown-arrow">▼</span>
+            </button>
+            {#if showSymbolDropdown}
+                <div class="dropdown-menu symbol-dropdown" transition:slide={{duration: 100}}>
+                    {#each symbols as symbol}
+                        <div 
+                            class="dropdown-item {selectedSymbol === symbol ? 'active' : ''}" 
+                            on:click={() => selectSymbol(symbol)}
+                        >
+                            {symbol}
+                        </div>
+                    {/each}
+                </div>
+            {/if}
         </div>
-        
-        <div class="control-group">
-            <label for="timeframe-select">Timeframe</label>
-            <select id="timeframe-select" bind:value={selectedTimeframe} on:change={handleTimeframeChange}>
+
+        <!-- Timeframe Selector - Now horizontal row of buttons -->
+        <div class="timeframe-selector">
+            <div class="timeframe-buttons">
                 {#each timeframes as tf}
-                    <option value={tf.value}>{tf.label}</option>
+                    <button 
+                        class="timeframe-button {selectedTimeframe === tf.value ? 'active' : ''}" 
+                        on:click={() => selectTimeframe(tf.value)}
+                    >
+                        {tf.label}
+                    </button>
                 {/each}
-            </select>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
-    .sidebar {
-        height: 100%;
-        width: 200px;
-        position: fixed;
-        z-index: 1000;
-        top: 0;
-        left: 0;
-        background-color: #1f1f1f;
-        overflow-x: hidden;
-        padding-top: 20px;
-        color: #e0e0e0;
-        box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+    .chart-controls {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 600;
+        display: flex;
+        align-items: center;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+        font-size: 12px;
+        pointer-events: none; /* Container is not clickable, only its contents */
     }
     
-    .logo {
-        text-align: center;
-        margin-bottom: 30px;
-        padding: 0 10px;
-    }
-    
-    .controls {
-        padding: 0 15px;
-    }
-    
-    .control-group {
-        margin-bottom: 20px;
-    }
-    
-    label {
-        display: block;
-        margin-bottom: 5px;
-        font-size: 14px;
-        color: #aaa;
-    }
-    
-    select {
-        width: 100%;
-        padding: 8px;
-        background-color: #2a2a2a;
-        color: #e0e0e0;
-        border: 1px solid #444;
+    .chart-control-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: rgba(30, 34, 45, 0.8);
         border-radius: 4px;
-        outline: none;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        padding: 2px;
+        pointer-events: auto; /* Make controls clickable */
     }
     
-    select:focus {
-        border-color: #606060;
+    .symbol-selector {
+        position: relative;
+        margin-bottom: 2px;
+        width: 100%;
     }
     
-    @media (max-width: 768px) {
-        .sidebar {
-            width: 150px;
+    .selected-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #2a2e39;
+        color: #e0e0e0;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 8px;
+        cursor: pointer;
+        width: 100%;
+        font-weight: 600;
+        font-size: 11px;
+        transition: background-color 0.2s;
+    }
+    
+    .selected-item:hover {
+        background: #363c4e;
+    }
+    
+    .symbol-name {
+        margin-right: 5px;
+    }
+    
+    .dropdown-arrow {
+        font-size: 8px;
+        margin-left: auto;
+    }
+    
+    .dropdown-menu {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        margin-top: 2px;
+        background: #2a2e39;
+        border-radius: 4px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+        z-index: 1000;
+        min-width: 120px;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    
+    .dropdown-item {
+        padding: 6px 10px;
+        cursor: pointer;
+        color: #e0e0e0;
+        font-size: 11px;
+        transition: background-color 0.2s;
+    }
+    
+    .dropdown-item:hover, .dropdown-item.active {
+        background: #3d82ce;
+    }
+    
+    .timeframe-selector {
+        display: flex;
+        align-items: center;
+        width: 100%;
+    }
+    
+    .timeframe-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px;
+        justify-content: center;
+        padding: 2px;
+        width: 100%;
+    }
+    
+    .timeframe-button {
+        background: #2a2e39;
+        border: none;
+        color: #9ca3af;
+        padding: 3px 4px;
+        font-size: 10px;
+        cursor: pointer;
+        border-radius: 2px;
+        min-width: 22px;
+        text-align: center;
+    }
+    
+    .timeframe-button:hover {
+        background: #363c4e;
+        color: #e0e0e0;
+    }
+    
+    .timeframe-button.active {
+        background: #3d82ce;
+        color: white;
+        font-weight: 500;
+    }
+    
+    @media (min-width: 768px) {
+        .chart-control-group {
+            flex-direction: row;
+            padding: 3px;
+        }
+        
+        .symbol-selector {
+            margin-bottom: 0;
+            margin-right: 3px;
+            width: auto;
+        }
+        
+        .timeframe-buttons {
+            justify-content: flex-start;
         }
     }
 </style>
