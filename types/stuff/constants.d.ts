@@ -45,7 +45,9 @@ declare const MAP_UNIT: {
     "1m": number;
     "3m": number;
     "5m": number;
+    "9m": number;
     "15m": number;
+    "27m": number;
     "30m": number;
     "1H": number;
     "2H": number;
