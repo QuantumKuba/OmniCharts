@@ -84,13 +84,13 @@ class DataLoader {
                         }
                     ],
                     tools: [
-                        { type: "Cursor", icon: `<svg fill="currentColor" .../></svg>` },
-                        { type: "Brush", label: "Brush", icon: `...` },
-                        { type: "LineTool", label: "Line", icon: `...` },
-                        { type: "LineToolHorizontalRay", label: "Horizontal Ray (Right Click)", icon: `...` },
-                        { type: "RangeTool", label: "Measure", icon: `...` },
-                        { type: "Magnet", label: "Magnet", icon: `...` },
-                        { type: "Trash", icon: `...` }
+                        { type: "Cursor", icon: `🖱️` },
+                        { type: "Brush", label: "Brush", icon: `🖌` },
+                        { type: "LineTool", label: "Line", icon: `—` },
+                        { type: "LineToolHorizontalRay", label: "Horizontal Ray (Right Click)", icon: `↗` },
+                        { type: "RangeTool", label: "Measure", icon: `⇔` },
+                        { type: "Magnet", label: "Magnet", icon: `🧲` },
+                        { type: "Trash", icon: `🗑️` }
                     ]
                 });
                 return;

@@ -231,7 +231,13 @@
             style={getIconStyle}
             on:mousedown={(event) => selectTool(event, toolbarItem)}
     >
-        {@html getSubItem(selectedTool) ? getSubItem(selectedTool).icon : toolbarItem.icon}
+        {#if (getSubItem(selectedTool) ? getSubItem(selectedTool).icon : toolbarItem.icon)?.trim()}
+            {@html getSubItem(selectedTool) ? getSubItem(selectedTool).icon : toolbarItem.icon}
+        {:else}
+            <span style="font-size:0.8em; color:inherit; display:block; text-align:center; line-height:1;">
+                {toolbarItem.label || toolbarItem.type}
+            </span>
+        {/if}
     </div>
 
     {#if toolbarItem?.items?.length}
@@ -252,7 +258,13 @@
                      title={groupItem.label}
                 >
                     <div class="nvjs-list-item-icon nvjs-pixelated" style={getChildIconStyle(groupItem)}>
-                        {@html groupItem.icon}
+                        {#if groupItem.icon?.trim()}
+                            {@html groupItem.icon}
+                        {:else}
+                            <span style="font-size:0.8em; color:inherit; display:block; text-align:center; line-height:1;">
+                                {groupItem.label || groupItem.type}
+                            </span>
+                        {/if}
                     </div>
                     <div>{groupItem.label}</div>
                 </div>
