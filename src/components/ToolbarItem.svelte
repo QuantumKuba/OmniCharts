@@ -3,7 +3,6 @@
     import {createEventDispatcher} from "svelte";
 
     export let props = {};
-    export let layout = {};
     export let toolbarItem = {};
     export let subs = {};
     export let tools = [];
@@ -140,6 +139,25 @@
 <style>
     .nvjs-toolbar-item {
         transition: ease-in-out .2s;
+        background: none;
+        border: none;
+        padding: 0;
+    }
+
+    /* Reset buttons for transparent icon-only appearance */
+    button.nvjs-toolbar-item-icon,
+    button.nvjs-toolbar-item-exp,
+    button.nvjs-list-item {
+        background: transparent;
+        border: none;
+        padding: 0;
+        margin: 0;
+        cursor: pointer;
+    }
+    button.nvjs-toolbar-item-icon:focus,
+    button.nvjs-toolbar-item-exp:focus,
+    button.nvjs-list-item:focus {
+        outline: none;
     }
 
     .nvjs-toolbar-item:hover {
@@ -178,7 +196,7 @@
     }
 
     .nvjs-toolbar-item.selected > .nvjs-toolbar-item-icon,
-    .nvjs-toolbar-list-item.selected > .nvjs-toolbar-item-icon {
+    .nvjs-list-item.selected > .nvjs-list-item-icon {
         color: #dc9800 !important;
     }
 
@@ -223,51 +241,42 @@
         id={toolbarItemId}
         style={getToolbarItemStyle()}
         class="nvjs-toolbar-item"
-        on:click={toolbarItemClick}
         class:selected={selected}
 >
-    <div
+    {#if (getSubItem(selectedTool) ? getSubItem(selectedTool).icon : toolbarItem.icon)?.trim()}
+    <button type="button"
             class="nvjs-toolbar-item-icon nvjs-pixelated"
             style={getIconStyle}
-            on:mousedown={(event) => selectTool(event, toolbarItem)}
+            on:click={(event) => selectTool(event, toolbarItem)}
     >
-        {#if (getSubItem(selectedTool) ? getSubItem(selectedTool).icon : toolbarItem.icon)?.trim()}
-            {@html getSubItem(selectedTool) ? getSubItem(selectedTool).icon : toolbarItem.icon}
-        {:else}
-            <span style="font-size:0.8em; color:inherit; display:block; text-align:center; line-height:1;">
-                {toolbarItem.label || toolbarItem.type}
-            </span>
-        {/if}
-    </div>
+        {@html getSubItem(selectedTool) ? getSubItem(selectedTool).icon : toolbarItem.icon}
+    </button>
+    {/if}
 
     {#if toolbarItem?.items?.length}
-        <div
+        <button type="button"
                 class="nvjs-toolbar-item-exp"
                 class:opened={showExpList}
                 style={getToolbarExpStyle()}
                 on:click={toolbarItemExtClick}
-        >ᐳ
-        </div>
+        >ᐳ</button>
     {/if}
 
     {#if toolbarItem?.items?.length && showExpList}
         <div class="nvjs-item-list" style={getChildListStyle()}>
             {#each toolbarItem.items as groupItem, i}
-                <div class="nvjs-list-item" style={getToolbarChildItemStyle()}
-                     on:mousedown={(event) => selectToolSub(event, groupItem)}
-                     title={groupItem.label}
+                <button type="button"
+                        class="nvjs-list-item"
+                        class:selected={groupItem.type === selectedTool}
+                        style={getToolbarChildItemStyle()}
+                        on:click={(event) => selectToolSub(event, groupItem)}
+                        title={groupItem.label}
                 >
                     <div class="nvjs-list-item-icon nvjs-pixelated" style={getChildIconStyle(groupItem)}>
-                        {#if groupItem.icon?.trim()}
-                            {@html groupItem.icon}
-                        {:else}
-                            <span style="font-size:0.8em; color:inherit; display:block; text-align:center; line-height:1;">
-                                {groupItem.label || groupItem.type}
-                            </span>
-                        {/if}
+                        {@html groupItem.icon}
                     </div>
                     <div>{groupItem.label}</div>
-                </div>
+                </button>
             {/each}
         </div>
     {/if}

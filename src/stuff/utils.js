@@ -2,7 +2,7 @@ import IndexedArray from 'arrayslicer'
 import Const from './constants.js'
 
 const {
-    MINUTE, MINUTE5, MINUTE15, HOUR, HOUR4,
+    MINUTE, MINUTE5, MINUTE15, MINUTE30, HOUR, HOUR4,
     DAY, WEEK, MONTH, YEAR
 } = Const
 
@@ -582,6 +582,9 @@ export default {
                 return `${Math.floor(rt / 60)}:${rt % 60 < 10 ? '0' : ''}${rt % 60}`;
             case MINUTE15:
                 rt = 15 * 60 - (m % 15) * 60 - s;
+                return `${Math.floor(rt / 60)}:${rt % 60 < 10 ? '0' : ''}${rt % 60}`;
+            case MINUTE30:
+                rt = 30 * 60 - (m % 30) * 60 - s;
                 return `${Math.floor(rt / 60)}:${rt % 60 < 10 ? '0' : ''}${rt % 60}`;
             case HOUR:
                 rt = 60 * 60 - m * 60 - s;

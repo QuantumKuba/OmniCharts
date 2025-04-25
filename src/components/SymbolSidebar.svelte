@@ -95,12 +95,13 @@
             {#if showSymbolDropdown}
                 <div class="dropdown-menu symbol-dropdown" transition:slide={{duration: 100}}>
                     {#each symbols as symbol}
-                        <div 
+                        <button 
+                            type="button"
                             class="dropdown-item {selectedSymbol === symbol ? 'active' : ''}" 
                             on:click={() => selectSymbol(symbol)}
                         >
                             {symbol}
-                        </div>
+                        </button>
                     {/each}
                 </div>
             {/if}
