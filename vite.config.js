@@ -24,6 +24,14 @@ export default defineConfig({
   ],
   server: {
     port: 8085,
+    proxy: {
+      '/api': {
+        target: 'https://api.binance.com',
+        changeOrigin: true,
+        secure: true,
+        rewrite: path => path.replace(/^\/api/, '/api')
+      }
+    },
   },
   build: {
     target: "es2018",

@@ -1,4 +1,3 @@
-
 import IndexedArray from 'arrayslicer'
 import Const from './constants.js'
 
@@ -616,6 +615,20 @@ export default {
                 rt = totalSecondsInYear - ((now - startOfYear) / 1000);
                 return `${Math.floor(rt / (24 * 3600))}d ${Math.floor(rt % (24 * 3600) / 3600)}h`;
             default:
+                // Fallback: support arbitrary string timeframes by computing remaining ms
+                const period = this.parseTf(tf);
+                if (period && typeof period === 'number') {
+                    const nowMod = now % period;
+                    const remMs = period - nowMod;
+                    const totalSec = Math.ceil(remMs / 1000);
+                    const hrs = Math.floor(totalSec / 3600);
+                    const mins = Math.floor((totalSec % 3600) / 60);
+                    const secs = totalSec % 60;
+                    if (hrs > 0) {
+                        return `${hrs}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+                    }
+                    return `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+                }
                 return "Unk TF";
         }
     },

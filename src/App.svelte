@@ -265,7 +265,9 @@
                     autoResize: true,
                     indexBased: false
                 });
-                
+                // Reset and render new data immediately
+                chart.fullReset();
+
                 // Re-define the update function
                 async function update() {
                     if (!chart.hub.mainOv) {
