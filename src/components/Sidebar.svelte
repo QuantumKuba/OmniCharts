@@ -234,6 +234,14 @@
         update(layout);
     }
 
+    // Handle keyboard interaction for sidebar click
+    function onKeydown(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick(e);
+        }
+    }
+
 // Draw stuff from overlay scripts
 function ovDrawCalls() {
     for (var l of layers) {
@@ -370,11 +378,14 @@ function onMouseLeave() {
 
 </script>
 <style>
-.nvjs-sidebar {}
 </style>
 <div id={sbId} style={sbStyle} class="nvjs-sidebar"
+    role="button"
+    tabindex="0"
     on:click={onClick}
+    on:keydown={onKeydown}
     on:mouseover={onMouseOver}
+    on:focus={onMouseOver}
     on:mouseleave={onMouseLeave}>
     <canvas id={canvasId}></canvas>
     {#if scales.length > 1 && showSwitch}

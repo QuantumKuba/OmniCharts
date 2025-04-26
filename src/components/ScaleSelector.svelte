@@ -101,9 +101,11 @@ function onClick(index) {
     transition:fade={{duration: 150}}>
     {#each scales as scale, i}
     {@const id = scale.scaleSpecs.id  }
-    <div class="scale-button" style={sbStyle(id)}
+    <button type="button"
+        class="scale-button"
+        style={sbStyle(id)}
         on:click|stopPropagation={() => onClick(id)}>
         {id}
-    </div>
+    </button>
     {/each}
 </div>

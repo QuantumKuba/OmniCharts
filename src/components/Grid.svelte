@@ -21,9 +21,10 @@ import Trackers from '../core/primitives/trackers.js'
 // Renderers
 import Canvas from '../components/renderers/Canvas.svelte'
 
+// Unused external prop for main
+export const main = false // main grid indicator (external reference only)
 export let id // Pane/grid id
 export let props // General props
-export let main // Is this the main grid?
 export let layout // Grid layout (scales, etc...)
 
 export function getLayers() { return layers }

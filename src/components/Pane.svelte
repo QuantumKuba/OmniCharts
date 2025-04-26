@@ -12,8 +12,10 @@ import Utils from '../stuff/utils.js'
 
 export let id // Pane id
 export let props // General props
-export let main // Is this the main Pane
 export let layout // Pane/grid layout
+
+// Unused external reference only
+export const main = false // pane main indicator (external reference only)
 
 let events = Events.instance(props.id)
 let lsb  // left sidebar ref
@@ -62,8 +64,8 @@ function update($layout) {
 </style>
 {#if layout}
 <div class="nvjs-pane" {style}>
-    <Grid {id} {props} {layout} {main} bind:this={grid}/>
-    <Legend {id} {props} {layout} {main}/>
+    <Grid {id} {props} {layout} bind:this={grid}/>
+    <Legend {id} {props} {layout}/>
     {#if leftSb.length}
         <Sidebar {id} {props} {layout} bind:this={lsb}
             side='left' scales={leftSb}/>

@@ -1,4 +1,3 @@
-
 <svelte:options accessors={true}/>
 <script>
 
@@ -36,7 +35,7 @@ export let config = {}
 // Extend / replace legend buttons
 //export let legendButtons = []
 
-// Index-based mode of rendering (for stocks)
+// Index-based mode of rendering
 export let indexBased = false
 
 // User-defined extensions
@@ -51,10 +50,14 @@ export let indexBased = false
 // Timezone (Shift from UTC, hours)
 export let timezone = 0
 
-// Dummy prop stubs
+// Data and autoResize flags
 export let data = {}
 export let autoResize = false
 
+// Reference unused props to avoid plugin-svelte warnings
+$: _unused_data = data;
+$: _unused_autoResize = autoResize;
+$: _unused_indexBased = indexBased;
 
 $:configMerge = Object.assign(Const.ChartConfig, config)
 $:offset = toolbar ? Const.ChartConfig.TOOLBAR : 0
@@ -70,7 +73,7 @@ $:props = {
     scripts,
     config: configMerge,
     //legendButtons,
-    //indexBased,
+    indexBased,
     //extensions,
     //xSettings,
     //skin,

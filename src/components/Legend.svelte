@@ -6,9 +6,10 @@ import Events from '../core/events.js'
 import DataHub from '../core/dataHub.js'
 import LegendLine from './LegendLine.svelte'
 
+// Unused external prop for main
+export const main = false // main pane indicator (external reference only)
 export let id // Legend/pane id
 export let props // General props
-export let main // Is this the main Pane
 export let layout // Pane/grid layout
 
 let hub = DataHub.instance(props.id)

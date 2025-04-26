@@ -94,8 +94,8 @@
     $:legendFns = meta.getLegendFns(gridId, ov.id) || {}
     $:legend = legendFns.legend
     $:legendHtml = legendFns.legendHtml
-    $:values = props.cursor.values || []
-    $:data = (values[gridId] || [])[ov.id] || []
+    $:values = (props.cursor?.values) || []
+    $:data = ((values?.[gridId]) || [])[ov.id] || []
     $:scale = findOverlayScale(layout.scales)
     $:prec = scale.prec
     $:display = ov.settings.display !== false
@@ -133,6 +133,14 @@
 
     function onDeselect(event) {
         selected = false
+    }
+
+    // Handle keyboard activation for legend line
+    function onKeydownLegend(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick(e);
+        }
     }
 
     // Format legend value
@@ -216,11 +224,14 @@
     }*/
 </style>
 {#if !ov.drawingTool && !legendFns.noLegend && ov.settings.showLegend !== false}
-    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <!-- Legend line container now interactive -->
     <div class="nvjs-legend-line" {style}
+         role="button"
+         tabindex="0"
          on:mousemove={onMouseMove}
          on:mouseleave={onMouseLeave}
          on:click={onClick}
+         on:keydown={onKeydownLegend}
          bind:this={ref}>
         {#if ov.main && props.showLogo}
             <div class="nvjs-logo" style={logoStyle}></div>

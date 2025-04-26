@@ -5,8 +5,9 @@
     import MetaHub from "../core/metaHub.js";
 
     export let props = {};
-    export let layout = {};
-    export let main = {};
+    // Unused external props for layout and main
+    export const layout = {};
+    export const main = {};
     export let side = 'left'; // Add the side prop with default value
 
     let events = Events.instance(props.id);
