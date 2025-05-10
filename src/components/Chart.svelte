@@ -16,10 +16,15 @@ import Context from '../stuff/context.js'
 import Pane from './Pane.svelte'
 import Botbar from './Botbar.svelte'
 import NoDataStub from './NoDataStub.svelte'
-import Toolbar from "./Toolbar.svelte";
-import Heatmap from "../core/primitives/heatmap.js";
+import Toolbar from "./Toolbar.svelte"
+import TimeframeToolbar from "./TimeframeToolbar.svelte"
+import Heatmap from "../core/primitives/heatmap.js"
 
 export let props = {}
+export let timeframeToolbarPosition = 'top' // top or bottom
+
+// Configure the timeframe toolbar height to match the vertical toolbar width
+const TIMEFRAME_TOOLBAR_HEIGHT = props.config ? props.config.TOOLBAR - 20 : 37;
 
 // Getters
 export function getLayout() { return layout }
@@ -62,7 +67,9 @@ scan.calcIndexOffsets()
 
 $:chartProps = Object.assign(
     {interval, timeFrame, range, ctx, cursor},
-    props
+    props,
+    // Add timeframe toolbar height to chartProps so the Layout can use it
+    {timeframeToolbarHeight: TIMEFRAME_TOOLBAR_HEIGHT}
 )
 
 // EVENT INTEFACE
@@ -234,19 +241,42 @@ function onSymbolChanged() {
 
 </script>
 <style>
-</style>
-{#key chartRR} <!-- Full chart re-render -->
-<div class="nvjs-chart" >
-    {#if layout && layout.main}
-        <Toolbar {props} side='left'/>
 
-        {#each hub.panes() as pane, i}
-    	<Pane id={i}
-            layout={layout.grids[i]}
-            props={chartProps}
-        />
-        {/each}
-        <Botbar props={chartProps} {layout}/>
+    /* Chart container styles NOTE: commented out as its not needed */
+    .nvjs-chart {
+        position: relative;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        background-color: var(--back-color, #14151c);
+    }
+    
+    /* The main chart content needs top padding to avoid overlapping with the timeframe toolbar */
+     .chart-content {
+        position: absolute;
+        top: 37px; /* Match the timeframe toolbar height */
+        left: 0;
+        right: 0;
+        bottom: 0;
+    } 
+</style>
+
+{#key chartRR} <!-- Full chart re-render -->
+<div class="nvjs-chart">
+    {#if layout && layout.main}
+        <TimeframeToolbar {props} />
+        
+        <div class="chart-content">
+            <Toolbar {props} side='left'/>
+
+            {#each hub.panes() as pane, i}
+            <Pane id={i}
+                layout={layout.grids[i]}
+                props={chartProps}
+            />
+            {/each}
+            <Botbar props={chartProps} {layout}/>
+        </div>
     {:else}
         <NoDataStub {props}/>
     {/if}

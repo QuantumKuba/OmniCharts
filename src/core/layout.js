@@ -13,11 +13,15 @@ function Layout(props, hub, meta) {
 
     if (!chart) return {}
 
+    // Account for the timeframe toolbar height if it exists
+    const timeframeToolbarHeight = props.timeframeToolbarHeight || 0
+
     // Splits space between main chart
     // and offchart indicator grids
     function gridHs() {
 
-        const height = props.height - props.config.BOTBAR
+        // Adjust height to account for botbar and timeframe toolbar
+        const height = props.height - props.config.BOTBAR - timeframeToolbarHeight
 
         // When at least one height defined (default = 1),
         // Pxs calculated as: (sum of weights) / number
