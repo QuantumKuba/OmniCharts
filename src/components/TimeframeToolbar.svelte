@@ -5,6 +5,7 @@
     import MetaHub from "../core/metaHub.js";
     import { createEventDispatcher } from 'svelte';
     import { slide } from 'svelte/transition';
+    import { tfToMs, msToTf } from "../../tests/real-time/lib/timeframeUtils.js";
 
     // Component props
     export let props = {};
@@ -101,35 +102,44 @@
     
     // Dispatch the selected values to update the chart - KEY FUNCTION
     function dispatchSelection() {
-        // First dispatch event to parent component
-        dispatch('symbolSelected', {
-            symbol: selectedSymbol,
-            timeframe: selectedTimeframe
-        });
-        
-        // Then update the chart using the event system
-        if (hub.mainOv) {
-            // Update main overlay settings
-            if (!hub.mainOv.settings) hub.mainOv.settings = {};
-            hub.mainOv.settings.symbol = selectedSymbol;
-            hub.mainOv.settings.timeFrame = selectedTimeframe;
-        }
-        
-        // Directly call the global handler if available
-        if (window.handleSymbolChange) {
-            window.handleSymbolChange({
-                detail: {
-                    symbol: selectedSymbol,
-                    timeframe: selectedTimeframe
-                }
+        try {
+            // Ensure timeframe is in string format
+            const normalizedTimeframe = msToTf(selectedTimeframe);
+            
+            // First dispatch event to parent component
+            const eventData = {
+                symbol: selectedSymbol,
+                timeframe: normalizedTimeframe
+            };
+            
+            // Log the exact values being dispatched
+            console.log(`TimeframeToolbar dispatching: symbol=${selectedSymbol}, timeframe=${normalizedTimeframe}`);
+            
+            dispatch('symbolSelected', eventData);
+            
+            // Then update the chart using the event system
+            if (hub.mainOv) {
+                // Update main overlay settings
+                if (!hub.mainOv.settings) hub.mainOv.settings = {};
+                hub.mainOv.settings.symbol = selectedSymbol;
+                hub.mainOv.settings.timeFrame = normalizedTimeframe;
+            }
+            
+            // Directly call the global handler if available
+            if (window.handleSymbolChange) {
+                window.handleSymbolChange({
+                    detail: eventData
+                });
+            }
+            
+            // Also emit a chart:symbol-changed event for other components
+            events.emit('chart:symbol-changed', {
+                symbol: selectedSymbol,
+                timeframe: normalizedTimeframe
             });
+        } catch (e) {
+            console.error("Error in dispatchSelection:", e);
         }
-        
-        // Also emit a chart:symbol-changed event for other components
-        events.emit('chart:symbol-changed', {
-            symbol: selectedSymbol,
-            timeframe: selectedTimeframe
-        });
     }
     
     // Initialize TimeframeToolbar when the chart loads or changes

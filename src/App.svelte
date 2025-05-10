@@ -29,7 +29,7 @@
     import { DataLoader } from "../tests/real-time/lib/dataLoader.js";
     import wsx from "../tests/real-time/lib/wsx.js";
     import sampler from "../tests/real-time/lib/ohlcvSampler.js";
-    import { tfToMs } from "../tests/real-time/lib/timeframeUtils.js";
+    import { tfToMs, msToTf } from "../tests/real-time/lib/timeframeUtils.js";
 
     import heatmapScript from "./scripts/heatmap.navy";
     import ZLEMA from "./scripts/indicators/ZLEMA.navy";
@@ -44,15 +44,36 @@
     let currentTimeframe = "5m"; // Default timeframe
     let activeIndicators = {}; // Store active indicators by symbol
 
-    // Handle symbol and timeframe selection from the sidebar
+    // Handle symbol and timeframe selection from the sidebar or toolbar
     const handleSymbolChange = (event) => {
         const { symbol, timeframe } = event.detail;
+        
+        // Ensure symbol is valid
+        if (!symbol) {
+            console.error("Invalid symbol provided");
+            return;
+        }
+        
+        // Normalize timeframe: ensure it's in string format (1m, 5m, 1h, etc.)
+        let normalizedTimeframe = msToTf(timeframe);
+        
+        console.log(`Symbol change request: ${currentSymbol} -> ${symbol}, Timeframe: ${currentTimeframe} -> ${normalizedTimeframe}`);
+        
+        // Store previous values to detect actual changes
+        const prevSymbol = currentSymbol;
+        const prevTimeframe = currentTimeframe;
+        
         currentSymbol = symbol;
-        currentTimeframe = timeframe;
+        currentTimeframe = normalizedTimeframe;
+        
         if (dl) {
             dl.SYM = currentSymbol;
-            dl.TF = currentTimeframe; // Update the timeframe
-            reloadData();
+            dl.TF = currentTimeframe; // Update the timeframe as string
+            
+            // Only reload if symbol or timeframe actually changed
+            if (prevSymbol !== symbol || prevTimeframe !== normalizedTimeframe) {
+                reloadData();
+            }
         } else {
             console.error("DataLoader is not initialized.");
         }
@@ -117,9 +138,13 @@
             return;
         }
         
-        console.log(
-            `Reloading data for symbol: ${currentSymbol} with timeframe: ${dl.TF}`,
-        );
+        // Ensure timeframe is in string format
+        if (typeof currentTimeframe !== 'string' || !/^[0-9]+[smhdwM]$/.test(currentTimeframe)) {
+            currentTimeframe = msToTf(currentTimeframe);
+            console.log(`Converted current timeframe to string format: ${currentTimeframe}`);
+        }
+        
+        console.log(`Reloading data for symbol: ${currentSymbol} with timeframe: ${currentTimeframe}`);
         
         // Save the current chart's indicators before changing symbols
         if (chart && chart.hub) {
@@ -170,9 +195,7 @@
         
         // Load the initial data for the new symbol and timeframe
         dl.load((newData) => {
-            console.log(
-                `Data loaded for symbol: ${currentSymbol} with timeframe: ${dl.TF}`,
-            );
+            console.log(`Data loaded for symbol: ${currentSymbol} with timeframe: ${currentTimeframe}`);
             
             // Ensure the tools array is preserved from the original data
             if (!newData.tools && chart.data && chart.data.tools) {
@@ -354,36 +377,43 @@
                 setTimeout(update, 100);
                 
                 // Allow a brief delay before initializing the WebSocket with the CURRENT symbol
-                // This is crucial - we need to use the current symbol's value, not rely on
-                // the symbol stored in dl.SYM which might be incorrect
                 setTimeout(() => {
                     try {
-                        // Explicitly initialize WebSocket with the current symbol
-                        console.log(`Initializing WebSocket for symbol: ${currentSymbol}`);
-                        wsx.init([currentSymbol]);
+                        // Store the current symbol and timeframe in variables that won't change
+                        const wsSymbol = currentSymbol;
+                        const wsTimeframe = currentTimeframe;
                         
-                        // Re-establish the trade handling
+                        // Explicitly initialize WebSocket with the current symbol
+                        console.log(`Initializing WebSocket for symbol: ${wsSymbol} with timeframe: ${wsTimeframe}`);
+                        wsx.init([wsSymbol]);
+                        
+                        // Re-establish the trade handling with captured variables
                         wsx.ontrades = (d) => {
-                            if (!chart.hub.mainOv) return;
-                            let data = chart.hub.mainOv.data;
-                            let trade = {
+                            if (!chart?.hub?.mainOv) return;
+                            const data = chart.hub.mainOv.data;
+                            const trade = {
                                 price: d.price,
                                 volume: d.price * d.size,
                             };
                             
-                            // Convert the current timeframe string to milliseconds
-                            const tfMs = tfToMs(currentTimeframe);
-                            
-                            // Pass the correct timeframe in milliseconds to the sampler
-                            if (sampler(data, trade, tfMs)) {
-                                chart.update("data"); // New candle
-                                chart.scroll(); // Scroll forward
+                            try {
+                                // Convert the timeframe string to milliseconds - use the captured wsTimeframe
+                                // which won't change even if currentTimeframe changes later
+                                const tfMs = tfToMs(wsTimeframe);
+                                
+                                // Pass the correct timeframe in milliseconds to the sampler
+                                if (sampler(data, trade, tfMs)) {
+                                    chart.update("data"); // New candle
+                                    chart.scroll(); // Scroll forward
+                                }
+                            } catch (e) {
+                                console.error("Error in trade processing:", e);
                             }
                         };
                     } catch (e) {
                         console.error("Error initializing WebSocket:", e);
                     }
-                }, 1000); // Increased delay to ensure chart is fully initialized
+                }, 1000);
 
                 // Trigger initial historical data load for indicators
                 setTimeout(() => {
@@ -493,20 +523,25 @@
          */
         wsx.init([dl.SYM]);
         wsx.ontrades = (d) => {
-            if (!chart.hub.mainOv) return;
-            let data = chart.hub.mainOv.data;
-            let trade = {
+            if (!chart?.hub?.mainOv) return;
+            const data = chart.hub.mainOv.data;
+            const trade = {
                 price: d.price,
                 volume: d.price * d.size,
             };
             
-            // Convert the current timeframe string to milliseconds
-            const tfMs = tfToMs(currentTimeframe);
-            
-            // Pass the correct timeframe in milliseconds to the sampler
-            if (sampler(data, trade, tfMs)) {
-                chart.update("data"); // New candle
-                chart.scroll(); // Scroll forward
+            try {
+                // Ensure timeframe is in string format before conversion
+                const safeTimeframe = msToTf(currentTimeframe || dl.TF || "5m");
+                const tfMs = tfToMs(safeTimeframe);
+                
+                // Pass the correct timeframe in milliseconds to the sampler
+                if (sampler(data, trade, tfMs)) {
+                    chart.update("data"); // New candle
+                    chart.scroll(); // Scroll forward
+                }
+            } catch (e) {
+                console.error("Error processing trade update:", e);
             }
         };
 
@@ -569,7 +604,7 @@
 
 <div class="app">
     <div id="chart-container"></div>
-    <SymbolSidebar on:symbolSelected={handleSymbolChange} />
+    <!-- <SymbolSidebar on:symbolSelected={handleSymbolChange} /> -->
 </div>
 
 <style>

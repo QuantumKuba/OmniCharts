@@ -10,6 +10,22 @@ class DataLoader {
         this.loading = false;
     }
 
+    // Ensure TF setter handles both string and millisecond formats
+    set TF(value) {
+        if (typeof value === 'number') {
+            // Convert from milliseconds to string format if needed
+            const { msToTf } = require('./timeframeUtils.js');
+            this._tf = msToTf(value);
+            console.log(`DataLoader: converted timeframe from ${value}ms to ${this._tf}`);
+        } else {
+            this._tf = value;
+        }
+    }
+    
+    get TF() {
+        return this._tf;
+    }
+
     async load(callback) {
         // Attempt fetching bars from the largest API-supported interval down to 1m
         const rawBars = 50;
