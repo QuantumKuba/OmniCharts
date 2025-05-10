@@ -21,7 +21,7 @@ import TimeframeToolbar from "./TimeframeToolbar.svelte"
 import Heatmap from "../core/primitives/heatmap.js"
 
 export let props = {}
-export let timeframeToolbarPosition = 'top' // top or bottom
+// export let timeframeToolbarPosition = 'top' // top or bottom
 
 // Configure the timeframe toolbar height to match the vertical toolbar width
 const TIMEFRAME_TOOLBAR_HEIGHT = props.config ? props.config.TOOLBAR - 20 : 37;
@@ -252,14 +252,14 @@ function onSymbolChanged() {
 <style>
 
     /* Chart container styles NOTE: commented out as its not needed */
-    .nvjs-chart {
+    /* .nvjs-chart {
         position: relative;
         height: 100%;
         width: 100%;
         overflow: hidden;
         background-color: var(--back-color, #14151c);
     }
-    
+     */
     /* The main chart content needs top padding to avoid overlapping with the timeframe toolbar */
      .chart-content {
         position: absolute;
