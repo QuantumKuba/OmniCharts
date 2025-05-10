@@ -25,6 +25,9 @@
     let selectedSymbol = hub.mainOv?.settings?.symbol || 'BTCUSDT';
     let selectedTimeframe = hub.mainOv?.settings?.timeFrame || props.timeFrame || "5m";
     
+    // Keep track of last known valid symbol to prevent it from being lost
+    let lastValidSymbol = selectedSymbol;
+    
     // Height of the timeframe toolbar
     const toolbarHeight = `${props.config.TOOLBAR - 20}px`;
     
@@ -89,32 +92,56 @@
     
     // Function to handle symbol selection
     function selectSymbol(symbol) {
+        if (!symbol) return;
+        
+        // Save the symbol for future reference
+        lastValidSymbol = symbol;
         selectedSymbol = symbol;
         showSymbolDropdown = false;
+        
         dispatchSelection();
+        
+        console.log(`[TimeframeToolbar] Symbol selected: ${symbol}, timeframe: ${selectedTimeframe}`);
     }
     
     // Function to handle timeframe selection
     function selectTimeframe(timeframe) {
+        if (!timeframe) return;
+        
         selectedTimeframe = timeframe;
+        
+        // Ensure we preserve the current symbol when changing timeframes
+        if (!selectedSymbol || selectedSymbol === '') {
+            console.warn('[TimeframeToolbar] No symbol selected when changing timeframe, using last valid symbol:', lastValidSymbol);
+            selectedSymbol = lastValidSymbol;
+        }
+        
         dispatchSelection();
+        
+        console.log(`[TimeframeToolbar] Timeframe selected: ${timeframe} for symbol: ${selectedSymbol}`);
     }
     
     // Dispatch the selected values to update the chart - KEY FUNCTION
     function dispatchSelection() {
         try {
+            // Ensure symbol is valid
+            if (!selectedSymbol) {
+                console.error('[TimeframeToolbar] Missing symbol in dispatchSelection');
+                selectedSymbol = lastValidSymbol;
+            }
+            
             // Ensure timeframe is in string format
             const normalizedTimeframe = msToTf(selectedTimeframe);
             
-            // First dispatch event to parent component
+            // Create event data object
             const eventData = {
                 symbol: selectedSymbol,
                 timeframe: normalizedTimeframe
             };
             
-            // Log the exact values being dispatched
-            console.log(`TimeframeToolbar dispatching: symbol=${selectedSymbol}, timeframe=${normalizedTimeframe}`);
+            console.log(`[TimeframeToolbar] Dispatching: symbol=${selectedSymbol}, timeframe=${normalizedTimeframe}`);
             
+            // First dispatch event to parent component
             dispatch('symbolSelected', eventData);
             
             // Then update the chart using the event system
@@ -124,6 +151,10 @@
                 hub.mainOv.settings.symbol = selectedSymbol;
                 hub.mainOv.settings.timeFrame = normalizedTimeframe;
             }
+            
+            // Also update global state explicitly to ensure persistence
+            window.currentSymbol = selectedSymbol;
+            window.currentTimeframe = normalizedTimeframe;
             
             // Directly call the global handler if available
             if (window.handleSymbolChange) {
@@ -138,15 +169,22 @@
                 timeframe: normalizedTimeframe
             });
         } catch (e) {
-            console.error("Error in dispatchSelection:", e);
+            console.error("[TimeframeToolbar] Error in dispatchSelection:", e);
         }
     }
     
     // Initialize TimeframeToolbar when the chart loads or changes
     events.on('chart:symbol-changed', event => {
         // Update local state when symbol changes elsewhere
-        if (event.symbol) selectedSymbol = event.symbol;
-        if (event.timeframe) selectedTimeframe = event.timeframe;
+        if (event.symbol) {
+            selectedSymbol = event.symbol;
+            lastValidSymbol = event.symbol; // Remember this valid symbol
+        }
+        if (event.timeframe) {
+            selectedTimeframe = event.timeframe;
+        }
+        
+        console.log(`[TimeframeToolbar] Received chart:symbol-changed: symbol=${event.symbol}, timeframe=${event.timeframe}`);
     });
     
     // Also listen for startup events
@@ -154,10 +192,13 @@
         // Check if main overlay settings exist and update our UI
         if (hub.mainOv?.settings?.symbol) {
             selectedSymbol = hub.mainOv.settings.symbol;
+            lastValidSymbol = selectedSymbol; // Remember this valid symbol
         }
         if (hub.mainOv?.settings?.timeFrame) {
             selectedTimeframe = hub.mainOv.settings.timeFrame;
         }
+        
+        console.log(`[TimeframeToolbar] Chart data loaded: symbol=${selectedSymbol}, timeframe=${selectedTimeframe}`);
     });
 </script>
 

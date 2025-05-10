@@ -29,13 +29,13 @@ export function tfToMs(tf) {
         const unit = tf.slice(-1); // Get the last character as the unit
         
         if (isNaN(num) || !multipliers[unit]) {
-            console.warn(`Invalid timeframe format: ${tf}, defaulting to 5m`);
+            console.warn(`[TimeframeUtils] Invalid timeframe format: ${tf}, defaulting to 5m`);
             return 5 * 60 * 1000; // Default to 5 minutes
         }
         
         return num * multipliers[unit];
     } catch (e) {
-        console.error(`Error parsing timeframe: ${tf}`, e);
+        console.error(`[TimeframeUtils] Error parsing timeframe: ${tf}`, e);
         return 5 * 60 * 1000; // Default to 5 minutes on error
     }
 }
@@ -47,8 +47,11 @@ export function tfToMs(tf) {
  */
 export function msToTf(ms) {
     // If it's already a string that looks like a timeframe, return it
-    if (typeof ms === 'string' && /^[0-9]+[smhdwM]$/.test(ms)) {
-        return ms;
+    if (typeof ms === 'string') {
+        // Check if it matches the pattern of a number followed by a timeframe unit
+        if (/^[0-9]+[smhdwM]$/.test(ms)) {
+            return ms;
+        }
     }
     
     // Try to convert to number if it's a string but not in timeframe format
@@ -57,7 +60,7 @@ export function msToTf(ms) {
     }
     
     if (typeof ms !== 'number' || isNaN(ms)) {
-        console.warn(`Invalid millisecond value: ${ms}, defaulting to 5m`);
+        console.warn(`[TimeframeUtils] Invalid millisecond value: ${ms}, defaulting to 5m`);
         return "5m"; // Default
     }
     
