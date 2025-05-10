@@ -263,7 +263,8 @@
                 chart = new NightVision("chart-container", {
                     data: newData,
                     autoResize: true,
-                    indexBased: false
+                    indexBased: false,
+                    onSymbolTimeframeChange: handleSymbolChange
                 });
                 // Reset and render new data immediately
                 chart.fullReset();
@@ -401,7 +402,8 @@
             data: data,
             autoResize: true,
             indexBased: false,
-            // timeframe: currentTimeframe, // Pass timeframe if required by the library
+            // Pass the event handler to the NightVision instance
+            onSymbolTimeframeChange: handleSymbolChange
         });
 
         // Initialize DataLoader with symbol and timeframe
@@ -508,10 +510,15 @@
             }
         };
 
+        // Make sure the chart instance has access to the handler
+        chart.events.on('chart-symbolTimeframe-changed', handleSymbolChange);
+
         // Expose the objects to the global scope for debugging
         window.wsx = wsx;
         window.chart = chart;
         window.stack = stack;
+        // Expose the symbol change handler so it can be called from TimeframeToolbar
+        window.handleSymbolChange = handleSymbolChange;
 
         // Group and execute test suites
         stack.setGroup("data-sync");

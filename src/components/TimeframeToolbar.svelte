@@ -115,7 +115,17 @@
             hub.mainOv.settings.timeFrame = selectedTimeframe;
         }
         
-        // Emit a chart:symbol-changed event - this triggers the onSymbolChanged handler
+        // Directly call the global handler if available
+        if (window.handleSymbolChange) {
+            window.handleSymbolChange({
+                detail: {
+                    symbol: selectedSymbol,
+                    timeframe: selectedTimeframe
+                }
+            });
+        }
+        
+        // Also emit a chart:symbol-changed event for other components
         events.emit('chart:symbol-changed', {
             symbol: selectedSymbol,
             timeframe: selectedTimeframe

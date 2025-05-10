@@ -3,7 +3,7 @@
 // Main component combining all grids, scales, etc.
 // Also, main event router, root of 'update' events
 
-import { onMount, onDestroy } from 'svelte'
+import { onMount, onDestroy, createEventDispatcher } from 'svelte'
 import Cursor from '../core/cursor.js'
 import DataHub from '../core/dataHub.js'
 import MetaHub from '../core/metaHub.js'
@@ -72,6 +72,9 @@ $:chartProps = Object.assign(
     {timeframeToolbarHeight: TIMEFRAME_TOOLBAR_HEIGHT}
 )
 
+// Add event dispatcher to forward events to parent (App.svelte)
+const dispatch = createEventDispatcher();
+
 // EVENT INTEFACE
 events.on('chart:cursor-changed', onCursorChanged)
 events.on('chart:cursor-locked', onCursorLocked)
@@ -99,6 +102,12 @@ onDestroy(() => {
     meta.destroyHeatmap();
     events.off('chart')
 })
+
+// Add handler for TimeframeToolbar's symbolSelected event
+function handleSymbolSelected(event) {
+    // Forward the event up to App.svelte
+    dispatch('symbolSelected', event.detail);
+}
 
 function onCursorChanged($cursor, emit = true) {
     // Emit a global event (hook)
@@ -264,7 +273,7 @@ function onSymbolChanged() {
 {#key chartRR} <!-- Full chart re-render -->
 <div class="nvjs-chart">
     {#if layout && layout.main}
-        <TimeframeToolbar {props} />
+        <TimeframeToolbar {props} on:symbolSelected={handleSymbolSelected} />
         
         <div class="chart-content">
             <Toolbar {props} side='left'/>
