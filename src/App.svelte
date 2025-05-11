@@ -44,52 +44,38 @@
     let currentTimeframe = "5m"; // Default timeframe
     let activeIndicators = {}; // Store active indicators by symbol
 
-    // Make these values globally available for debugging and advanced use
-    onMount(() => {
-        window.currentSymbol = currentSymbol;
-        window.currentTimeframe = currentTimeframe;
-    });
-
     // Handle symbol and timeframe selection from the sidebar or toolbar
     const handleSymbolChange = (event) => {
         const { symbol, timeframe } = event.detail;
         
-        // Ensure symbol is valid - if not, keep the current symbol
+        // Ensure symbol is valid
         if (!symbol) {
-            console.error("[App] Invalid symbol provided, keeping current symbol:", currentSymbol);
-            event.detail.symbol = currentSymbol;
+            console.error("Invalid symbol provided");
             return;
         }
         
         // Normalize timeframe: ensure it's in string format (1m, 5m, 1h, etc.)
         let normalizedTimeframe = msToTf(timeframe);
         
-        console.log(`[App] Symbol change request: ${currentSymbol} -> ${symbol}, Timeframe: ${currentTimeframe} -> ${normalizedTimeframe}`);
+        console.log(`Symbol change request: ${currentSymbol} -> ${symbol}, Timeframe: ${currentTimeframe} -> ${normalizedTimeframe}`);
         
         // Store previous values to detect actual changes
         const prevSymbol = currentSymbol;
         const prevTimeframe = currentTimeframe;
         
-        // Update current values
         currentSymbol = symbol;
         currentTimeframe = normalizedTimeframe;
         
-        // Update global values for debugging
-        window.currentSymbol = currentSymbol;
-        window.currentTimeframe = currentTimeframe;
-        
         if (dl) {
-            // Update DataLoader with new symbol and timeframe
             dl.SYM = currentSymbol;
             dl.TF = currentTimeframe; // Update the timeframe as string
             
             // Only reload if symbol or timeframe actually changed
             if (prevSymbol !== symbol || prevTimeframe !== normalizedTimeframe) {
-                console.log(`[App] Reloading data due to symbol/timeframe change`);
                 reloadData();
             }
         } else {
-            console.error("[App] DataLoader is not initialized.");
+            console.error("DataLoader is not initialized.");
         }
     };
 
@@ -148,21 +134,17 @@
     // Function to reload data based on the selected symbol and timeframe
     function reloadData() {
         if (!dl) {
-            console.error("[App] DataLoader is not initialized.");
+            console.error("DataLoader is not initialized.");
             return;
         }
-        
-        // Double-check current values are correct
-        console.log(`[App] Before reload - Symbol: ${currentSymbol}, Timeframe: ${currentTimeframe}`);
         
         // Ensure timeframe is in string format
         if (typeof currentTimeframe !== 'string' || !/^[0-9]+[smhdwM]$/.test(currentTimeframe)) {
             currentTimeframe = msToTf(currentTimeframe);
-            window.currentTimeframe = currentTimeframe; // Update global reference
-            console.log(`[App] Converted current timeframe to string format: ${currentTimeframe}`);
+            console.log(`Converted current timeframe to string format: ${currentTimeframe}`);
         }
         
-        console.log(`[App] Reloading data for symbol: ${currentSymbol} with timeframe: ${currentTimeframe}`);
+        console.log(`Reloading data for symbol: ${currentSymbol} with timeframe: ${currentTimeframe}`);
         
         // Save the current chart's indicators before changing symbols
         if (chart && chart.hub) {
@@ -211,13 +193,9 @@
             panes: [] // Empty panes array ensures it's iterable
         };
         
-        // Capture current symbol/timeframe to ensure they don't change during async operations
-        const symbolToLoad = currentSymbol;
-        const timeframeToLoad = currentTimeframe;
-        
         // Load the initial data for the new symbol and timeframe
         dl.load((newData) => {
-            console.log(`[App] Data loaded for symbol: ${symbolToLoad} with timeframe: ${timeframeToLoad}`);
+            console.log(`Data loaded for symbol: ${currentSymbol} with timeframe: ${currentTimeframe}`);
             
             // Ensure the tools array is preserved from the original data
             if (!newData.tools && chart.data && chart.data.tools) {
@@ -231,12 +209,10 @@
                 // Update the name of the main overlay to reflect current symbol
                 const mainOverlay = newData.panes[0].overlays.find(o => o.main);
                 if (mainOverlay) {
-                    mainOverlay.name = `${symbolToLoad} / Tether US`;
+                    mainOverlay.name = `${currentSymbol} / Tether US`;
                     
-                    // Store symbol/timeframe in main overlay settings
+                    // Force auto-scaling for the new price range
                     if (!mainOverlay.settings) mainOverlay.settings = {};
-                    mainOverlay.settings.symbol = symbolToLoad;
-                    mainOverlay.settings.timeFrame = timeframeToLoad;
                     mainOverlay.settings.autoScale = true;
                 }
                 
@@ -311,10 +287,7 @@
                     data: newData,
                     autoResize: true,
                     indexBased: false,
-                    onSymbolTimeframeChange: handleSymbolChange,
-                    // Pass the symbol and timeframe explicitly to ensure they're set correctly
-                    symbol: symbolToLoad,
-                    timeframe: timeframeToLoad
+                    onSymbolTimeframeChange: handleSymbolChange
                 });
                 // Reset and render new data immediately
                 chart.fullReset();
@@ -407,15 +380,11 @@
                 setTimeout(() => {
                     try {
                         // Store the current symbol and timeframe in variables that won't change
-                        const wsSymbol = symbolToLoad;
-                        const wsTimeframe = timeframeToLoad;
-                        
-                        // Update global state again in case it changed during async operations
-                        window.currentSymbol = wsSymbol;
-                        window.currentTimeframe = wsTimeframe;
+                        const wsSymbol = currentSymbol;
+                        const wsTimeframe = currentTimeframe;
                         
                         // Explicitly initialize WebSocket with the current symbol
-                        console.log(`[App] Initializing WebSocket for symbol: ${wsSymbol} with timeframe: ${wsTimeframe}`);
+                        console.log(`Initializing WebSocket for symbol: ${wsSymbol} with timeframe: ${wsTimeframe}`);
                         wsx.init([wsSymbol]);
                         
                         // Re-establish the trade handling with captured variables
@@ -442,7 +411,7 @@
                             }
                         };
                     } catch (e) {
-                        console.error("[App] Error initializing WebSocket:", e);
+                        console.error("Error initializing WebSocket:", e);
                     }
                 }, 1000);
 
