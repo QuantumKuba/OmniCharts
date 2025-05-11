@@ -3,7 +3,7 @@
     import TimeframeToolbarItem from "./TimeframeToolbarItem.svelte";
     import Events from "../core/events.js";
     import MetaHub from "../core/metaHub.js";
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
     import { slide } from 'svelte/transition';
     import { tfToMs, msToTf } from "../../tests/real-time/lib/timeframeUtils.js";
 
@@ -22,12 +22,16 @@
     let toolbarId = `${props.id}-timeframe-toolbar`;
     
     // Default selected values - Get initial values from the chart if available
-    let selectedSymbol = hub.mainOv?.settings?.symbol || 'BTCUSDT';
-    let selectedTimeframe = hub.mainOv?.settings?.timeFrame || props.timeFrame || "5m";
+    let selectedSymbol = hub.mainOv?.settings?.symbol || window.currentSymbol || 'BTCUSDT';
+    let selectedTimeframe = hub.mainOv?.settings?.timeFrame || props.timeFrame || window.currentTimeframe || "5m";
     
     // Keep track of last known valid symbol to prevent it from being lost
     let lastValidSymbol = selectedSymbol;
     
+    // Debug indicator to check state synchronization
+    let stateCheckCount = 0;
+    let lastStateCheck = Date.now();
+
     // Height of the timeframe toolbar
     const toolbarHeight = `${props.config.TOOLBAR - 20}px`;
     
@@ -112,8 +116,17 @@
         
         // Ensure we preserve the current symbol when changing timeframes
         if (!selectedSymbol || selectedSymbol === '') {
-            console.warn('[TimeframeToolbar] No symbol selected when changing timeframe, using last valid symbol:', lastValidSymbol);
-            selectedSymbol = lastValidSymbol;
+            console.warn('[TimeframeToolbar] No symbol selected when changing timeframe. Current symbol from hub:', hub.mainOv?.settings?.symbol);
+            console.warn('[TimeframeToolbar] Using last valid symbol:', lastValidSymbol);
+            
+            // Check if main overlay has a valid symbol
+            if (hub.mainOv?.settings?.symbol) {
+                selectedSymbol = hub.mainOv.settings.symbol;
+            } else if (window.currentSymbol) {
+                selectedSymbol = window.currentSymbol;
+            } else {
+                selectedSymbol = lastValidSymbol;
+            }
         }
         
         dispatchSelection();
@@ -124,10 +137,18 @@
     // Dispatch the selected values to update the chart - KEY FUNCTION
     function dispatchSelection() {
         try {
-            // Ensure symbol is valid
+            // Prevent symbol reset by checking current values in multiple places
             if (!selectedSymbol) {
-                console.error('[TimeframeToolbar] Missing symbol in dispatchSelection');
-                selectedSymbol = lastValidSymbol;
+                // Try getting the symbol from various places
+                let symbolFromHub = hub.mainOv?.settings?.symbol;
+                let symbolFromWindow = window.currentSymbol;
+                let symbolFromMeta = meta.symbol;
+                
+                console.error('[TimeframeToolbar] Missing symbol in dispatchSelection, checking alternatives:');
+                console.error(`- hub: ${symbolFromHub}, window: ${symbolFromWindow}, meta: ${symbolFromMeta}, last: ${lastValidSymbol}`);
+                
+                // Use the first valid symbol we can find
+                selectedSymbol = symbolFromHub || symbolFromWindow || symbolFromMeta || lastValidSymbol;
             }
             
             // Ensure timeframe is in string format
@@ -156,6 +177,14 @@
             window.currentSymbol = selectedSymbol;
             window.currentTimeframe = normalizedTimeframe;
             
+            // EMERGENCY BACKUP PREVENTION - store the current symbol/timeframe in localStorage
+            try {
+                localStorage.setItem('omni_currentSymbol', selectedSymbol);
+                localStorage.setItem('omni_currentTimeframe', normalizedTimeframe);
+            } catch (e) {
+                // Storage might be disabled, ignore
+            }
+            
             // Directly call the global handler if available
             if (window.handleSymbolChange) {
                 window.handleSymbolChange({
@@ -164,13 +193,40 @@
             }
             
             // Also emit a chart:symbol-changed event for other components
-            events.emit('chart:symbol-changed', {
-                symbol: selectedSymbol,
-                timeframe: normalizedTimeframe
-            });
+            events.emit('chart:symbol-changed', eventData);
+            
+            // Update our last valid symbol
+            lastValidSymbol = selectedSymbol;
         } catch (e) {
             console.error("[TimeframeToolbar] Error in dispatchSelection:", e);
         }
+    }
+    
+    // Periodically check and reconcile state between hub and local component
+    function checkState() {
+        stateCheckCount++;
+        lastStateCheck = Date.now();
+        
+        // Get values from different sources
+        const hubSymbol = hub.mainOv?.settings?.symbol;
+        const hubTimeframe = hub.mainOv?.settings?.timeFrame;
+        const windowSymbol = window.currentSymbol;
+        const windowTimeframe = window.currentTimeframe;
+        
+        // Check for mismatches
+        if (hubSymbol && hubSymbol !== selectedSymbol) {
+            console.warn(`[TimeframeToolbar] State mismatch - local symbol: ${selectedSymbol}, hub symbol: ${hubSymbol}`);
+            selectedSymbol = hubSymbol;
+            lastValidSymbol = hubSymbol;
+        }
+        
+        if (hubTimeframe && hubTimeframe !== selectedTimeframe) {
+            console.warn(`[TimeframeToolbar] State mismatch - local timeframe: ${selectedTimeframe}, hub timeframe: ${hubTimeframe}`);
+            selectedTimeframe = hubTimeframe;
+        }
+        
+        // Schedule next check (light enough to run often)
+        setTimeout(checkState, 2000);
     }
     
     // Initialize TimeframeToolbar when the chart loads or changes
@@ -199,6 +255,22 @@
         }
         
         console.log(`[TimeframeToolbar] Chart data loaded: symbol=${selectedSymbol}, timeframe=${selectedTimeframe}`);
+    });
+    
+    // When component mounts, recover from localStorage if needed and start state checks
+    onMount(() => {
+        // Try to recover from localStorage if there's nothing yet
+        if (!selectedSymbol && localStorage.getItem('omni_currentSymbol')) {
+            selectedSymbol = localStorage.getItem('omni_currentSymbol');
+            lastValidSymbol = selectedSymbol;
+        }
+        
+        if (!selectedTimeframe && localStorage.getItem('omni_currentTimeframe')) {
+            selectedTimeframe = localStorage.getItem('omni_currentTimeframe');
+        }
+        
+        // Start periodic state checking
+        setTimeout(checkState, 1000);
     });
 </script>
 
