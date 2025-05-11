@@ -125,10 +125,17 @@ const MAP_UNIT = {
     "2h": HOUR * 2,
     "3h": HOUR * 3,
     "4h": HOUR4,
+    "6h": HOUR * 6,
+    "8h": HOUR * 8,
     "12h": HOUR12,
     "1d": DAY,
+    "3d": DAY * 3,
     "1w": WEEK,
-    "1y": YEAR
+    "1y": YEAR,
+    // Add uppercase variants for consistency if used elsewhere, though toolbar uses lowercase
+    "6H": HOUR * 6,
+    "8H": HOUR * 8,
+    "3D": DAY * 3
 }
 
 // Half-pixel adjustment to the canvas

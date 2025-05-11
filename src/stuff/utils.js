@@ -530,10 +530,10 @@ export default {
         return $cursor
     },
 
-    // Adjust mouse coords to fix the shift caused by 
+    // Adjust mouse coords to fix the shift caused by
     // css transforms
     adjustMouse(event, canvas) {
-       
+
         const rect = canvas.getBoundingClientRect();
 
         // Calculate the adjusted coordinates
@@ -571,7 +571,7 @@ export default {
             D = now.getUTCDay(),
             Y = now.getUTCFullYear();
 
-        let rt; 
+        let rt;
 
         switch (tf) {
             case MINUTE:
@@ -643,6 +643,53 @@ export default {
         ('ontouchstart' in w ||
         (w.DocumentTouch &&
         document instanceof w.DocumentTouch))))
-        (typeof window !== 'undefined' ? window : {})
+        (typeof window !== 'undefined' ? window : {}),
 
+    // Function to convert milliseconds to timeframe string
+    msToTf(ms) {
+        // If it's already a string that looks like a timeframe, return it
+        if (typeof ms === 'string') {
+            if (/^[0-9]+[smhdwM]$/.test(ms)) {
+                return ms;
+            }
+            const match = ms.match(/([0-9]+)([smhdwM])/);
+            if (match) {
+                return match[1] + match[2];
+            }
+        }
+        // Try to convert to number if it's a string but not in timeframe format
+        if (typeof ms === 'string') {
+            ms = parseInt(ms);
+        }
+        if (typeof ms !== 'number' || isNaN(ms)) {
+            console.warn(`[Utils] Invalid millisecond value: ${ms}, defaulting to 5m`);
+            return "5m";
+        }
+        switch(ms) {
+            case 60000: return "1m";
+            case 180000: return "3m";
+            case 300000: return "5m";
+            case 540000: return "9m";
+            case 900000: return "15m";
+            case 1620000: return "27m";
+            case 1800000: return "30m";
+            case 3600000: return "1h";
+            case 7200000: return "2h";
+            case 10800000: return "3h";
+            case 14400000: return "4h";
+            case 21600000: return "6h";
+            case 28800000: return "8h";
+            case 43200000: return "12h";
+            case 86400000: return "1d";
+            case 259200000: return "3d";
+            case 604800000: return "1w";
+            case 2592000000: return "1M"; // Assuming 'M' is for Month
+            default:
+                if (ms < 3600000) return Math.round(ms / 60000) + "m";
+                else if (ms < 86400000) return Math.round(ms / 3600000) + "h";
+                else if (ms < 604800000) return Math.round(ms / 86400000) + "d";
+                else if (ms < 2592000000) return Math.round(ms / 604800000) + "w";
+                else return Math.round(ms / 2592000000) + "M";
+        }
+    }
 }

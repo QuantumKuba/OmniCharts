@@ -6,7 +6,7 @@ class DataLoader {
         // Use Vite dev proxy to hit Binance REST without CORS
         this.URL = "/api/v3/klines";
         this.SYM = symbol;
-        this.TF = timeframe; // Setting timeframe from constructor parameter
+        this._tf = timeframe; // Direct assignment to avoid circular reference
         this.loading = false;
     }
 
@@ -30,13 +30,20 @@ class DataLoader {
         // Attempt fetching bars from the largest API-supported interval down to 1m
         const rawBars = 50;
         const targetMs = tfToMs(this.TF);
+        
+        // Log clear details about what we're trying to load
+        console.log(`[DataLoader] Loading ${this.SYM} with TF=${this.TF} (${targetMs}ms)`);
+        
         // Build list of APIIntervals that evenly divide target timeframe
         const candidates = API_INTERVALS
             .map(i => ({ interval: i, ms: tfToMs(i) }))
             .filter(o => o.ms <= targetMs && targetMs % o.ms === 0)
             .sort((a, b) => b.ms - a.ms);
+            
         // Always try 1m as last fallback
         candidates.push({ interval: '1m', ms: tfToMs('1m') });
+        
+        console.log(`[DataLoader] Using candidate intervals: ${candidates.map(c => c.interval).join(', ')}`);
 
         let raw;
         for (let { interval, ms: baseMs } of candidates) {
@@ -44,26 +51,35 @@ class DataLoader {
             let limit = Math.ceil(rawBars * (targetMs / baseMs));
             limit = Math.min(limit, 1000);
             const url = `${this.URL}?symbol=${this.SYM}&interval=${interval}&limit=${limit}`;
-            console.log(`load() trying ${interval} for TF=${this.TF}, limit=${limit}`);
+            console.log(`[DataLoader] Trying ${interval} for TF=${this.TF}, limit=${limit}`);
             try {
                 const res = await fetch(url);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const json = await res.json();
                 if (!json || json.length === 0) throw new Error('Empty payload');
                 raw = json;
-                console.log(`load() success via ${interval}, received ${raw.length} raw bars`);
+                console.log(`[DataLoader] Success via ${interval}, received ${raw.length} raw bars`);
+                
                 // Found a usable raw dataset
                 // Aggregate if needed
                 const formatted = raw.map(x => this.format(x));
+                
+                // For higher timeframes, ensure we have enough data
                 const data = baseMs === targetMs
                     ? formatted
                     : this.aggregate(formatted, baseMs, targetMs);
+                    
                 const finalData = data;
-                console.log(`FinalData for ${this.SYM}, TF=${this.TF}: ` +
+                
+                console.log(`[DataLoader] FinalData for ${this.SYM}, TF=${this.TF}: ` +
                     `length=${finalData.length}, ` +
                     `start=${new Date(finalData[0][0]).toISOString()}, ` +
                     `end=${new Date(finalData[finalData.length-1][0]).toISOString()}, ` +
                     `using interval=${interval}`);
+                
+                // For higher timeframes, ensure data has volume and proper structure
+                this.validateData(finalData);
+                
                 // Callback with full panes and tools definitions
                 callback({
                     panes: [
@@ -73,7 +89,18 @@ class DataLoader {
                                 { name: "TrippleEMA", type: "TrippleEMA" }
                             ],
                             overlays: [
-                                { name: "BTC / Tether US", type: "Candles", main: true, data: finalData, props: {}, settings: { zIndex: 100, timeFrame: targetMs } },
+                                { 
+                                    name: `${this.SYM} / Tether US`, 
+                                    type: "Candles", 
+                                    main: true, 
+                                    data: finalData, 
+                                    props: {}, 
+                                    settings: { 
+                                        zIndex: 100, 
+                                        symbol: this.SYM,
+                                        timeFrame: this.TF
+                                    } 
+                                },
                                 { name: "RangeTool", type: "RangeTool", drawingTool: true, data: [], props: {}, settings: { zIndex: 1000 } },
                                 { name: "LineTool", type: "LineTool", drawingTool: true, data: [], props: {}, settings: { zIndex: 1000 } },
                                 { name: "LineToolHorizontalRay", type: "LineToolHorizontalRay", drawingTool: true, data: [], props: {}, settings: { zIndex: 1000 } },
@@ -111,11 +138,52 @@ class DataLoader {
                 });
                 return;
             } catch (e) {
-                console.warn(`load() failed with interval ${interval}:`, e);
+                console.warn(`[DataLoader] Failed with interval ${interval}:`, e);
                 // try next candidate
             }
         }
-        console.error(`load() all intervals failed for TF=${this.TF}`);
+        console.error(`[DataLoader] All intervals failed for TF=${this.TF}`);
+    }
+
+    // Validate data for rendering
+    validateData(data) {
+        if (!data || data.length === 0) return;
+        
+        // Check for any 0 values that might prevent rendering
+        for (let i = 0; i < data.length; i++) {
+            const candle = data[i];
+            
+            // Validate timestamp
+            if (!candle[0]) {
+                console.warn(`[DataLoader] Fixing invalid timestamp at index ${i}`);
+                // If timestamp is 0, estimate based on previous/next candles
+                if (i > 0 && i < data.length - 1) {
+                    candle[0] = data[i-1][0] + (data[i+1][0] - data[i-1][0])/2;
+                } else if (i > 0) {
+                    candle[0] = data[i-1][0] + tfToMs(this.TF);
+                } else if (i < data.length - 1) {
+                    candle[0] = data[i+1][0] - tfToMs(this.TF);
+                }
+            }
+            
+            // Ensure OHLCV values are non-zero
+            for (let j = 1; j <= 5; j++) {
+                if (candle[j] === 0 || candle[j] === undefined || candle[j] === null) {
+                    // Try to infer a reasonable value
+                    if (i > 0) {
+                        candle[j] = data[i-1][j];
+                        console.warn(`[DataLoader] Fixing 0 value at [${i}][${j}] with previous candle value`);
+                    } else if (i < data.length - 1) {
+                        candle[j] = data[i+1][j];
+                        console.warn(`[DataLoader] Fixing 0 value at [${i}][${j}] with next candle value`);
+                    } else {
+                        // Last resort - use a small non-zero value
+                        candle[j] = 0.00001;
+                        console.warn(`[DataLoader] Using fallback value for [${i}][${j}]`);
+                    }
+                }
+            }
+        }
     }
 
     async loadMore(endTime, callback) {

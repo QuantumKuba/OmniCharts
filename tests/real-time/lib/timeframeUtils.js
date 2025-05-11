@@ -6,7 +6,6 @@
 export function tfToMs(tf) {
     // If tf is already a number (milliseconds), return it directly
     if (typeof tf === 'number') {
-        // Don't log every time to reduce console spam
         return tf;
     }
     
@@ -29,13 +28,13 @@ export function tfToMs(tf) {
         const unit = tf.slice(-1); // Get the last character as the unit
         
         if (isNaN(num) || !multipliers[unit]) {
-            console.warn(`Invalid timeframe format: ${tf}, defaulting to 5m`);
+            console.warn(`[TimeframeUtils] Invalid timeframe format: ${tf}, defaulting to 5m`);
             return 5 * 60 * 1000; // Default to 5 minutes
         }
         
         return num * multipliers[unit];
     } catch (e) {
-        console.error(`Error parsing timeframe: ${tf}`, e);
+        console.error(`[TimeframeUtils] Error parsing timeframe: ${tf}`, e);
         return 5 * 60 * 1000; // Default to 5 minutes on error
     }
 }
@@ -47,8 +46,17 @@ export function tfToMs(tf) {
  */
 export function msToTf(ms) {
     // If it's already a string that looks like a timeframe, return it
-    if (typeof ms === 'string' && /^[0-9]+[smhdwM]$/.test(ms)) {
-        return ms;
+    if (typeof ms === 'string') {
+        // Check if it matches the pattern of a number followed by a timeframe unit
+        if (/^[0-9]+[smhdwM]$/.test(ms)) {
+            return ms;
+        }
+        
+        // Try to extract a valid timeframe from the string
+        const match = ms.match(/([0-9]+)([smhdwM])/);
+        if (match) {
+            return match[1] + match[2];
+        }
     }
     
     // Try to convert to number if it's a string but not in timeframe format
@@ -57,7 +65,7 @@ export function msToTf(ms) {
     }
     
     if (typeof ms !== 'number' || isNaN(ms)) {
-        console.warn(`Invalid millisecond value: ${ms}, defaulting to 5m`);
+        console.warn(`[TimeframeUtils] Invalid millisecond value: ${ms}, defaulting to 5m`);
         return "5m"; // Default
     }
     
@@ -95,4 +103,38 @@ export function msToTf(ms) {
                 return Math.round(ms / 2592000000) + "M";
             }
     }
+}
+
+/**
+ * Check if a timeframe is valid and supported
+ * @param {string|number} tf - Timeframe to check
+ * @returns {boolean} - True if valid
+ */
+export function isValidTimeframe(tf) {
+    // If it's a number, assume it's milliseconds and check common values
+    if (typeof tf === 'number') {
+        const commonTfMs = [
+            60000, 180000, 300000, 540000, 900000, 1620000, 1800000, // minutes
+            3600000, 7200000, 10800000, 14400000, 21600000, 28800000, 43200000, // hours
+            86400000, 259200000, 604800000, 2592000000 // days+
+        ];
+        return commonTfMs.includes(tf);
+    }
+    
+    // If it's a string, check format and common values
+    if (typeof tf === 'string') {
+        // Check format
+        if (!/^[0-9]+[smhdwM]$/.test(tf)) {
+            return false;
+        }
+        
+        // Common timeframes
+        const commonTfs = ['1m', '3m', '5m', '9m', '15m', '27m', '30m', 
+                         '1h', '2h', '3h', '4h', '6h', '8h', '12h', 
+                         '1d', '3d', '1w', '1M'];
+        
+        return commonTfs.includes(tf);
+    }
+    
+    return false;
 }
