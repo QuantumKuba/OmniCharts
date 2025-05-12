@@ -45,6 +45,10 @@
     let symbolCategories = [];
     let filteredSymbols = [];
     let selectedCategory = "USDT";
+    let favoriteSymbols = [];
+
+    // Add special categories for favorite symbols
+    const FAVORITES_CATEGORY = "★"; // Using a star to represent favorites
 
     // Timeframes
     const timeframes = [
@@ -140,6 +144,33 @@
         dispatchSelection();
         
         console.log(`[TimeframeToolbar] Symbol selected: ${symbol}, timeframe: ${selectedTimeframe}`);
+    }
+    
+    // Function to toggle a symbol as favorite
+    async function toggleFavorite(symbol, event) {
+        // Stop event propagation to prevent the dropdown item click handler from being triggered
+        if (event) {
+            event.stopPropagation();
+        }
+        
+        // Toggle favorite status
+        const isFav = symbolService.toggleFavorite(symbol);
+        
+        // Refresh favorites list
+        favoriteSymbols = await symbolService.getFavorites();
+        
+        // If we're in favorites view, refresh the list
+        if (selectedCategory === FAVORITES_CATEGORY) {
+            filteredSymbols = favoriteSymbols;
+        }
+        
+        console.log(`[TimeframeToolbar] ${isFav ? 'Added' : 'Removed'} ${symbol} ${isFav ? 'to' : 'from'} favorites`);
+        return false; // Prevent default action
+    }
+    
+    // Check if a symbol is a favorite
+    function isSymbolFavorite(symbol) {
+        return symbolService.isFavorite(symbol);
     }
     
     // Function to handle timeframe selection
@@ -257,7 +288,12 @@
         if (symbolSearchQuery && symbolSearchQuery.trim() !== '') {
             await searchSymbols();
         } else {
-            filteredSymbols = await symbolService.getSymbolsByCategory(selectedCategory);
+            if (selectedCategory === FAVORITES_CATEGORY) {
+                // Load favorites
+                filteredSymbols = await symbolService.getFavorites();
+            } else {
+                filteredSymbols = await symbolService.getSymbolsByCategory(selectedCategory);
+            }
         }
     }
     
@@ -327,11 +363,20 @@
     async function initSymbols() {
         isLoading = true;
         try {
+            // Load favorites first
+            symbolService.loadFavorites();
+            favoriteSymbols = await symbolService.getFavorites();
+            
             // Get all available symbols
             availableSymbols = await symbolService.fetchAllSymbols();
             
             // Get categories (quote assets)
             symbolCategories = await symbolService.getCategories();
+            
+            // Add favorites as a special category at the beginning
+            if (!symbolCategories.includes(FAVORITES_CATEGORY)) {
+                symbolCategories.unshift(FAVORITES_CATEGORY);
+            }
             
             // Get popular symbols
             topSymbols = await symbolService.getTopSymbols(10);
@@ -433,17 +478,31 @@
                     {#if isLoading}
                         <div class="loading-indicator">Loading symbols...</div>
                     {:else if filteredSymbols.length === 0}
-                        <div class="no-results">No symbols found</div>
+                        <div class="no-results">
+                            {selectedCategory === FAVORITES_CATEGORY ? 'No favorites added yet. Click the star icon to add favorites.' : 'No symbols found'}
+                        </div>
                     {:else}
                         {#each filteredSymbols as symbol}
-                            <button 
-                                type="button"
-                                class="dropdown-item {selectedSymbol === symbol.symbol ? 'active' : ''}" 
-                                on:click={() => selectSymbol(symbol.symbol)}
-                            >
-                                <strong>{symbol.baseAsset}</strong>
-                                <span class="quote-asset">{symbol.quoteAsset}</span>
-                            </button>
+                            <div class="dropdown-item-wrapper">
+                                <button 
+                                    type="button"
+                                    class="dropdown-item {selectedSymbol === symbol.symbol ? 'active' : ''}" 
+                                    on:click={() => selectSymbol(symbol.symbol)}
+                                >
+                                    <strong>{symbol.baseAsset}</strong>
+                                    <span class="quote-asset">{symbol.quoteAsset}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="favorite-button"
+                                    on:click={(e) => toggleFavorite(symbol.symbol, e)}
+                                    title={isSymbolFavorite(symbol.symbol) ? "Remove from favorites" : "Add to favorites"}
+                                >
+                                    <span class="favorite-star {isSymbolFavorite(symbol.symbol) ? 'active' : ''}">
+                                        {isSymbolFavorite(symbol.symbol) ? '★' : '☆'}
+                                    </span>
+                                </button>
+                            </div>
                         {/each}
                     {/if}
                 </div>
@@ -648,8 +707,15 @@
         border-radius: 6px;
     }
     
-    .dropdown-item {
+    .dropdown-item-wrapper {
+        display: flex;
+        align-items: center;
         width: 100%;
+        border-bottom: 1px solid rgba(54, 60, 78, 0.4);
+    }
+    
+    .dropdown-item {
+        flex-grow: 1;
         padding: 8px 12px;
         cursor: pointer;
         color: #e0e0e0;
@@ -678,6 +744,36 @@
     
     .dropdown-item.active .quote-asset {
         color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .favorite-button {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 0 10px;
+        font-size: 16px;
+        color: #9ca3af;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        transition: color 0.2s;
+    }
+    
+    .favorite-button:hover {
+        color: #e0e0e0;
+    }
+    
+    .favorite-star {
+        transition: color 0.2s, transform 0.2s;
+    }
+    
+    .favorite-star.active {
+        color: #dd9801;
+    }
+    
+    .favorite-button:hover .favorite-star {
+        transform: scale(1.2);
     }
     
     .loading-indicator, .no-results {

@@ -11,6 +11,128 @@ let symbolCache = {
     categories: {}
 };
 
+// Favorites management
+let favorites = [];
+
+/**
+ * Load favorites from cookies
+ */
+function loadFavorites() {
+    try {
+        const cookieValue = getCookie('omni_favorites');
+        if (cookieValue) {
+            favorites = JSON.parse(cookieValue);
+            console.log(`[SymbolService] Loaded ${favorites.length} favorites from cookies`);
+        }
+    } catch (error) {
+        console.error('[SymbolService] Error loading favorites from cookies:', error);
+        favorites = [];
+    }
+    return favorites;
+}
+
+/**
+ * Save favorites to cookies
+ */
+function saveFavorites() {
+    try {
+        setCookie('omni_favorites', JSON.stringify(favorites), 365); // Store for 1 year
+        console.log(`[SymbolService] Saved ${favorites.length} favorites to cookies`);
+    } catch (error) {
+        console.error('[SymbolService] Error saving favorites to cookies:', error);
+    }
+}
+
+/**
+ * Add a symbol to favorites
+ * @param {string} symbol - Symbol to add to favorites
+ */
+function addFavorite(symbol) {
+    if (!favorites.includes(symbol)) {
+        favorites.push(symbol);
+        saveFavorites();
+    }
+}
+
+/**
+ * Remove a symbol from favorites
+ * @param {string} symbol - Symbol to remove from favorites
+ */
+function removeFavorite(symbol) {
+    const index = favorites.indexOf(symbol);
+    if (index !== -1) {
+        favorites.splice(index, 1);
+        saveFavorites();
+    }
+}
+
+/**
+ * Check if a symbol is in favorites
+ * @param {string} symbol - Symbol to check
+ * @returns {boolean} True if the symbol is a favorite
+ */
+function isFavorite(symbol) {
+    return favorites.includes(symbol);
+}
+
+/**
+ * Get all favorite symbols with full info
+ * @returns {Promise<Array>} Array of favorite symbol objects
+ */
+async function getFavorites() {
+    // Ensure we have symbols data
+    const allSymbols = await fetchAllSymbols();
+    
+    // Match favorite symbols with full data
+    return favorites
+        .map(favSymbol => 
+            allSymbols.find(s => s.symbol === favSymbol)
+        )
+        .filter(s => s !== undefined); // Filter out any that weren't found
+}
+
+/**
+ * Toggle a symbol's favorite status
+ * @param {string} symbol - Symbol to toggle
+ * @returns {boolean} New favorite status
+ */
+function toggleFavorite(symbol) {
+    if (isFavorite(symbol)) {
+        removeFavorite(symbol);
+        return false;
+    } else {
+        addFavorite(symbol);
+        return true;
+    }
+}
+
+/**
+ * Helper function to get cookie value
+ * @param {string} name - Cookie name
+ * @returns {string|null} Cookie value or null if not found
+ */
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+        return parts.pop().split(';').shift();
+    }
+    return null;
+}
+
+/**
+ * Helper function to set cookie value
+ * @param {string} name - Cookie name
+ * @param {string} value - Cookie value
+ * @param {number} days - Number of days until expiration
+ */
+function setCookie(name, value, days) {
+    const date = new Date();
+    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+    const expires = `expires=${date.toUTCString()}`;
+    document.cookie = `${name}=${value};${expires};path=/;SameSite=Lax`;
+}
+
 /**
  * Fetch all available trading symbols from Binance
  * @returns {Promise<Array>} Array of symbol objects
@@ -255,5 +377,13 @@ export default {
     searchSymbols,
     getSymbolsByCategory,
     getCategories,
-    getTopSymbols
+    getTopSymbols,
+    // Favorites management
+    loadFavorites,
+    saveFavorites,
+    addFavorite,
+    removeFavorite,
+    isFavorite,
+    getFavorites,
+    toggleFavorite
 };
