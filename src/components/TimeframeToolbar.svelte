@@ -640,6 +640,9 @@
     .search-container {
         padding: 8px;
         border-bottom: 1px solid #363c4e;
+        display: flex;
+        justify-self: center;
+        align-items: center;
     }
     
     .symbol-search-input {
