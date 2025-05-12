@@ -346,7 +346,7 @@
     }
     
     .nvjs-timeframe-item.selected {
-        background-color: #3d82ce;
+        background-color: #dd9801;
         color: white;
         font-weight: 500;
     }
@@ -439,6 +439,6 @@
     }
     
     .dropdown-item:hover, .dropdown-item.active {
-        background: #3d82ce;
+        background: #dd9801;
     }
 </style>

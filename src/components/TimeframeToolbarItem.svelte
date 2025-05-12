@@ -60,7 +60,7 @@
     }
     
     .nvjs-timeframe-item.selected {
-        background-color: #3d82ce;
+        background-color: #dd9801;
         color: white;
         font-weight: 500;
     }
