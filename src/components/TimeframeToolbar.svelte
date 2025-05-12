@@ -3,9 +3,10 @@
     import TimeframeToolbarItem from "./TimeframeToolbarItem.svelte";
     import Events from "../core/events.js";
     import MetaHub from "../core/metaHub.js";
-    import { createEventDispatcher, onMount } from 'svelte';
-    import { slide } from 'svelte/transition';
+    import { createEventDispatcher, onMount, tick } from 'svelte';
+    import { slide, fade } from 'svelte/transition';
     import utilsMethods from "../stuff/utils.js";
+    import symbolService from "../services/symbolService.js";
     const { parseTf: tfToMs, msToTf } = utilsMethods;
 
     // Component props
@@ -36,8 +37,16 @@
     // Height of the timeframe toolbar
     const toolbarHeight = `${props.config.TOOLBAR - 20}px`;
     
-    // Define available symbols and timeframes - exact match with SymbolSidebar
-    const symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'SOLUSDT'];
+    // Symbol search and selection state
+    let isLoading = true;
+    let symbolSearchQuery = "";
+    let availableSymbols = [];
+    let topSymbols = [];
+    let symbolCategories = [];
+    let filteredSymbols = [];
+    let selectedCategory = "USDT";
+
+    // Timeframes
     const timeframes = [
         { value: '1m', label: '1m' },
         { value: '3m', label: '3m' },
@@ -82,10 +91,26 @@
         padding: 0 10px;
     `;
 
-    // Toggle dropdown for symbol selection
+    // Symbol dropdown state
     let showSymbolDropdown = false;
+    let searchInputElement;
+
+    // Toggle symbol dropdown
     function toggleSymbolDropdown() {
         showSymbolDropdown = !showSymbolDropdown;
+        
+        // Focus the search input when opening the dropdown
+        if (showSymbolDropdown) {
+            setTimeout(() => {
+                if (searchInputElement) {
+                    searchInputElement.focus();
+                }
+            }, 100);
+        } else {
+            // Clear search when closing dropdown
+            symbolSearchQuery = "";
+            updateFilteredSymbols();
+        }
     }
 
     // Close dropdown when clicking outside
@@ -93,6 +118,9 @@
         const target = event.target;
         if (!target.closest('.symbol-selector') && showSymbolDropdown) {
             showSymbolDropdown = false;
+            // Clear search when closing dropdown
+            symbolSearchQuery = "";
+            updateFilteredSymbols();
         }
     }
     
@@ -104,6 +132,10 @@
         lastValidSymbol = symbol;
         selectedSymbol = symbol;
         showSymbolDropdown = false;
+        
+        // Clear search query
+        symbolSearchQuery = "";
+        updateFilteredSymbols();
         
         dispatchSelection();
         
@@ -204,6 +236,38 @@
         }
     }
     
+    // Search symbols by query
+    async function searchSymbols() {
+        if (!symbolSearchQuery || symbolSearchQuery.trim() === '') {
+            // If query is empty, show symbols from the selected category
+            filteredSymbols = await symbolService.getSymbolsByCategory(selectedCategory);
+        } else {
+            // Search across all symbols
+            filteredSymbols = await symbolService.searchSymbols(symbolSearchQuery);
+        }
+    }
+    
+    // Handle search input change
+    async function handleSearchInput() {
+        await searchSymbols();
+    }
+    
+    // Update filtered symbols based on category selection and search query
+    async function updateFilteredSymbols() {
+        if (symbolSearchQuery && symbolSearchQuery.trim() !== '') {
+            await searchSymbols();
+        } else {
+            filteredSymbols = await symbolService.getSymbolsByCategory(selectedCategory);
+        }
+    }
+    
+    // Select a category to filter symbols
+    async function selectCategory(category) {
+        selectedCategory = category;
+        symbolSearchQuery = "";
+        await updateFilteredSymbols();
+    }
+    
     // Periodically check and reconcile state between hub and local component
     function checkState() {
         stateCheckCount++;
@@ -259,8 +323,54 @@
         console.log(`[TimeframeToolbar] Chart data loaded: symbol=${selectedSymbol}, timeframe=${selectedTimeframe}`);
     });
     
+    // Initialize symbols and categories
+    async function initSymbols() {
+        isLoading = true;
+        try {
+            // Get all available symbols
+            availableSymbols = await symbolService.fetchAllSymbols();
+            
+            // Get categories (quote assets)
+            symbolCategories = await symbolService.getCategories();
+            
+            // Get popular symbols
+            topSymbols = await symbolService.getTopSymbols(10);
+            
+            // Initialize filtered symbols with selected category
+            filteredSymbols = await symbolService.getSymbolsByCategory(selectedCategory);
+            
+            // Ensure our selected symbol exists in the list
+            const symbolExists = availableSymbols.some(s => s.symbol === selectedSymbol);
+            if (!symbolExists) {
+                // If not, find a close match or use the first available symbol
+                const matchingSymbol = availableSymbols.find(s => 
+                    s.symbol.includes(selectedSymbol) || selectedSymbol.includes(s.symbol)
+                );
+                if (matchingSymbol) {
+                    selectedSymbol = matchingSymbol.symbol;
+                    lastValidSymbol = selectedSymbol;
+                }
+            }
+        } catch (error) {
+            console.error("[TimeframeToolbar] Error initializing symbols:", error);
+            
+            // Fallback to default symbols
+            filteredSymbols = [
+                { symbol: 'BTCUSDT', baseAsset: 'BTC', quoteAsset: 'USDT' },
+                { symbol: 'ETHUSDT', baseAsset: 'ETH', quoteAsset: 'USDT' },
+                { symbol: 'BNBUSDT', baseAsset: 'BNB', quoteAsset: 'USDT' },
+                { symbol: 'XRPUSDT', baseAsset: 'XRP', quoteAsset: 'USDT' },
+                { symbol: 'ADAUSDT', baseAsset: 'ADA', quoteAsset: 'USDT' },
+                { symbol: 'DOGEUSDT', baseAsset: 'DOGE', quoteAsset: 'USDT' },
+                { symbol: 'SOLUSDT', baseAsset: 'SOL', quoteAsset: 'USDT' }
+            ];
+        } finally {
+            isLoading = false;
+        }
+    }
+    
     // When component mounts, recover from localStorage if needed and start state checks
-    onMount(() => {
+    onMount(async () => {
         // Try to recover from localStorage if there's nothing yet
         if (!selectedSymbol && localStorage.getItem('omni_currentSymbol')) {
             selectedSymbol = localStorage.getItem('omni_currentSymbol');
@@ -270,6 +380,9 @@
         if (!selectedTimeframe && localStorage.getItem('omni_currentTimeframe')) {
             selectedTimeframe = localStorage.getItem('omni_currentTimeframe');
         }
+        
+        // Initialize symbols
+        await initSymbols();
         
         // Start periodic state checking
         setTimeout(checkState, 1000);
@@ -285,17 +398,55 @@
             <span class="symbol-name">{selectedSymbol}</span>
             <span class="dropdown-arrow">▼</span>
         </button>
+        
         {#if showSymbolDropdown}
-            <div class="dropdown-menu symbol-dropdown" transition:slide={{duration: 100}}>
-                {#each symbols as symbol}
-                    <button 
-                        type="button"
-                        class="dropdown-item {selectedSymbol === symbol ? 'active' : ''}" 
-                        on:click={() => selectSymbol(symbol)}
-                    >
-                        {symbol}
-                    </button>
-                {/each}
+            <div class="dropdown-menu symbol-dropdown" transition:slide={{duration: 150}}>
+                <!-- Search bar -->
+                <div class="search-container">
+                    <input 
+                        type="text" 
+                        bind:this={searchInputElement}
+                        bind:value={symbolSearchQuery}
+                        on:input={handleSearchInput}
+                        placeholder="Search..." 
+                        class="symbol-search-input" 
+                    />
+                </div>
+                
+                <!-- Categories -->
+                {#if !symbolSearchQuery}
+                    <div class="categories-container">
+                        {#each symbolCategories as category}
+                            <button 
+                                type="button"
+                                class="category-item {selectedCategory === category ? 'active' : ''}" 
+                                on:click={() => selectCategory(category)}
+                            >
+                                {category}
+                            </button>
+                        {/each}
+                    </div>
+                {/if}
+                
+                <!-- Symbol list -->
+                <div class="symbols-list-container">
+                    {#if isLoading}
+                        <div class="loading-indicator">Loading symbols...</div>
+                    {:else if filteredSymbols.length === 0}
+                        <div class="no-results">No symbols found</div>
+                    {:else}
+                        {#each filteredSymbols as symbol}
+                            <button 
+                                type="button"
+                                class="dropdown-item {selectedSymbol === symbol.symbol ? 'active' : ''}" 
+                                on:click={() => selectSymbol(symbol.symbol)}
+                            >
+                                <strong>{symbol.baseAsset}</strong>
+                                <span class="quote-asset">{symbol.quoteAsset}</span>
+                            </button>
+                        {/each}
+                    {/if}
+                </div>
             </div>
         {/if}
     </div>
@@ -418,12 +569,83 @@
         margin-top: 4px;
         background: #2a2e39;
         border-radius: 4px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
         overflow: hidden;
-        z-index: 100;
-        min-width: 120px;
-        max-height: 300px;
+        z-index: 1000;
+        min-width: 280px;
+        max-height: 460px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .search-container {
+        padding: 8px;
+        border-bottom: 1px solid #363c4e;
+    }
+    
+    .symbol-search-input {
+        width: 100%;
+        padding: 8px 10px;
+        background: #1e212a;
+        color: #e0e0e0;
+        border: 1px solid #363c4e;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+    
+    .symbol-search-input:focus {
+        outline: none;
+        border-color: #dd9801;
+    }
+    
+    .categories-container {
+        display: flex;
+        flex-wrap: wrap;
+        padding: 6px;
+        border-bottom: 1px solid #363c4e;
+        gap: 4px;
+    }
+    
+    .category-item {
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 3px;
+        background: #1e212a;
+        color: #9ca3af;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.2s, color 0.2s;
+    }
+    
+    .category-item:hover {
+        background: #363c4e;
+        color: #e0e0e0;
+    }
+    
+    .category-item.active {
+        background: #dd9801;
+        color: white;
+    }
+    
+    .symbols-list-container {
+        flex: 1;
         overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #363c4e transparent;
+        max-height: 350px;
+    }
+    
+    .symbols-list-container::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .symbols-list-container::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    
+    .symbols-list-container::-webkit-scrollbar-thumb {
+        background-color: #363c4e;
+        border-radius: 6px;
     }
     
     .dropdown-item {
@@ -435,10 +657,33 @@
         border: none;
         background: transparent;
         text-align: left;
+        display: flex;
+        align-items: center;
         transition: background-color 0.2s;
     }
     
     .dropdown-item:hover, .dropdown-item.active {
+        background: #363c4e;
+    }
+    
+    .dropdown-item.active {
         background: #dd9801;
+    }
+    
+    .quote-asset {
+        margin-left: 4px;
+        color: #9ca3af;
+        font-size: 11px;
+    }
+    
+    .dropdown-item.active .quote-asset {
+        color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .loading-indicator, .no-results {
+        padding: 16px;
+        text-align: center;
+        color: #9ca3af;
+        font-size: 12px;
     }
 </style>
