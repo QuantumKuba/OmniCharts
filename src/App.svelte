@@ -672,5 +672,6 @@
         width: 100%;
         height: 100%;
         z-index: 500; /* Ensures chart is below the sidebar */
+        background-color: aqua;
     }
 </style>
