@@ -208,7 +208,7 @@
 
     .nvjs-action-icon-wrapper:hover {
         filter: brightness(1.25);
-        background-color: rgba(150, 150, 150, .4);
+        background-color: rgba(25, 25, 25, 0.4);
     }
 
     .king-icon {
