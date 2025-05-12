@@ -8,8 +8,7 @@
     export let gridId // gridId
     export let ov // Overlay
     export let props // General props
-    // Unused external reference only
-    export const height = 0 // legend controls height (external reference only)
+    export let height // Legend-line height
 
     let events = Events.instance(props.id)
 
@@ -38,14 +37,17 @@
 </script>
 
 <div class="legend-controls-container">
-    <button type="button" class="nvjs-action-icon-wrapper" on:click|stopPropagation={onDisplayClick}>
-        <div class="nvjs-action-icon" style={eyeStyle}></div>
-    </button>
+    <div class="nvjs-action-icon-wrapper">
+        <div class="nvjs-action-icon" style={eyeStyle} on:click|stopPropagation={onDisplayClick}></div>
+    </div>
 
     {#if legendSettings.length > 0}
         {#each legendSettings as {id, icon}}
             <div class="nvjs-action-icon-wrapper">
-                <div id={id} class="nvjs-action-icon" style="background-image: url({icon}); background-size: contain; background-repeat: no-repeat;"/>
+                <div id={id} class="nvjs-action-icon" style="background-image: url({icon});
+      background-size: contain;
+      background-repeat: no-repeat;"
+                />
             </div>
         {/each}
     {/if}
