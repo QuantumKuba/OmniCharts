@@ -80,7 +80,7 @@ $:props = {
     timezone
 }
 $:style = `
-    width: ${props.width}px;
+    // width: ${props.width}px;
     height: ${props.height}px;
 `
 

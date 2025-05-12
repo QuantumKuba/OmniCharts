@@ -67,7 +67,8 @@
     
     // Toolbar style - positioned horizontally at top of chart
     $:toolbarStyle = `
-        left: ${props.config.TOOLBAR}px;
+        // left: ${props.config.TOOLBAR}px;
+        left: 0;
         top: 0;
         right: 0;
         position: absolute;
