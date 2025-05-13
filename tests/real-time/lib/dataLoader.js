@@ -8,6 +8,32 @@ class DataLoader {
         this.SYM = symbol;
         this._tf = timeframe; // Direct assignment to avoid circular reference
         this.loading = false;
+        this.lastRequestTime = 0; // Track last request time for throttling
+        this.MIN_REQUEST_INTERVAL = 500; // Minimum ms between requests
+        this.MAX_CANDLES_PER_REQUEST = 1000; // Binance API limit
+        this.DEFAULT_BATCH_SIZE = 50; // Default candles to fetch if we can't calculate
+        this.SCROLL_THRESHOLD_FACTOR = 0.25; // How close to edge before loading more (0.25 = 25% of visible range)
+        this.loadingQueue = []; // Queue pending load requests
+        
+        // Cache system to avoid refetching data
+        this.dataCache = {
+            // Map of timestamps to cached data
+            // Key: timestamp, Value: array of candle data
+            byTimestamp: new Map(),
+            
+            // Track the oldest timestamp we've fetched for this symbol/timeframe
+            oldestTimestamp: Infinity,
+            
+            // Track the newest timestamp we've fetched for this symbol/timeframe
+            newestTimestamp: -Infinity,
+            
+            // Used to identify when we need to reset the cache (symbol or timeframe change)
+            symbol: symbol,
+            timeframe: timeframe,
+            
+            // Pre-fetch settings
+            PREFETCH_MULTIPLIER: 2, // How much additional data to prefetch (2x = twice the current view)
+        };
     }
 
     // Ensure TF setter handles both string and millisecond formats
@@ -17,18 +43,161 @@ class DataLoader {
             const { msToTf } = require('./timeframeUtils.js');
             this._tf = msToTf(value);
             console.log(`DataLoader: converted timeframe from ${value}ms to ${this._tf}`);
+            
+            // Reset cache when timeframe changes
+            if (this.dataCache.timeframe !== this._tf) {
+                this.resetCache();
+            }
         } else {
-            this._tf = value;
+            // Reset cache when timeframe changes
+            if (this.dataCache.timeframe !== value) {
+                this._tf = value;
+                this.resetCache();
+            } else {
+                this._tf = value;
+            }
         }
     }
     
     get TF() {
         return this._tf;
     }
+    
+    // Reset the data cache when symbol or timeframe changes
+    resetCache() {
+        console.log(`[DataLoader] Resetting cache for symbol: ${this.SYM}, timeframe: ${this._tf}`);
+        this.dataCache = {
+            byTimestamp: new Map(),
+            oldestTimestamp: Infinity,
+            newestTimestamp: -Infinity,
+            symbol: this.SYM,
+            timeframe: this._tf,
+            PREFETCH_MULTIPLIER: this.dataCache.PREFETCH_MULTIPLIER || 2
+        };
+    }
+    
+    // Add fetched data to cache
+    addToCache(candles) {
+        if (!candles || candles.length === 0) return;
+        
+        // Different symbol or timeframe - reset cache
+        if (this.dataCache.symbol !== this.SYM || this.dataCache.timeframe !== this._tf) {
+            this.resetCache();
+        }
+        
+        let updated = false;
+        
+        // Add each candle to cache by timestamp
+        for (const candle of candles) {
+            const timestamp = candle[0];
+            
+            // Only add if we don't already have this timestamp
+            if (!this.dataCache.byTimestamp.has(timestamp)) {
+                this.dataCache.byTimestamp.set(timestamp, candle);
+                updated = true;
+                
+                // Update oldest and newest timestamps
+                if (timestamp < this.dataCache.oldestTimestamp) {
+                    this.dataCache.oldestTimestamp = timestamp;
+                }
+                
+                if (timestamp > this.dataCache.newestTimestamp) {
+                    this.dataCache.newestTimestamp = timestamp;
+                }
+            }
+        }
+        
+        if (updated) {
+            console.log(`[DataLoader] Cache updated: ${this.dataCache.byTimestamp.size} candles cached, range: ${new Date(this.dataCache.oldestTimestamp).toISOString()} to ${new Date(this.dataCache.newestTimestamp).toISOString()}`);
+        }
+    }
+    
+    // Check if we already have data for a given timestamp range
+    hasDataInCache(startTime, endTime) {
+        // If cache is for a different symbol or timeframe, return false
+        if (this.dataCache.symbol !== this.SYM || this.dataCache.timeframe !== this._tf) {
+            return false;
+        }
+        
+        return startTime >= this.dataCache.oldestTimestamp && endTime <= this.dataCache.newestTimestamp;
+    }
+    
+    // Get data from cache for a timestamp range
+    getFromCache(startTime, endTime) {
+        // If cache is for a different symbol or timeframe, return empty array
+        if (this.dataCache.symbol !== this.SYM || this.dataCache.timeframe !== this._tf) {
+            return [];
+        }
+        
+        // Filter the cached candles within the specified range
+        const candles = [];
+        for (const [timestamp, candle] of this.dataCache.byTimestamp.entries()) {
+            if (timestamp >= startTime && timestamp <= endTime) {
+                candles.push(candle);
+            }
+        }
+        
+        // Sort by timestamp
+        candles.sort((a, b) => a[0] - b[0]);
+        
+        console.log(`[DataLoader] Retrieved ${candles.length} candles from cache for range: ${new Date(startTime).toISOString()} to ${new Date(endTime).toISOString()}`);
+        return candles;
+    }
+
+    // Calculate optimal batch size based on chart range and scroll position
+    calculateOptimalBatchSize(visibleRange, oldestTime) {
+        try {
+            // If we don't have a valid range yet, use default
+            if (!visibleRange || !Array.isArray(visibleRange) || visibleRange.length < 2) {
+                return this.DEFAULT_BATCH_SIZE;
+            }
+            
+            // Calculate the width of the current view in time units
+            const visibleTimespan = visibleRange[1] - visibleRange[0];
+            
+            // Calculate how far back we're scrolling (distance from visible range to oldest loaded candle)
+            const scrollDistance = visibleRange[0] - oldestTime;
+            
+            // How far we are scrolling as a percentage of visible range
+            const scrollFactor = Math.abs(scrollDistance) / visibleTimespan;
+            
+            // When user scrolls very far back, load more candles per request
+            // The formula scales from the default batch size up to the maximum allowed
+            let batchSize;
+            
+            if (scrollFactor <= this.SCROLL_THRESHOLD_FACTOR) {
+                // If we're just scrolling a little bit, use the default batch size
+                batchSize = this.DEFAULT_BATCH_SIZE; 
+            } else {
+                // Scale the batch size based on how far back we're scrolling
+                // Starting from DEFAULT_BATCH_SIZE and increasing up to MAX_CANDLES_PER_REQUEST
+                const scaleFactor = Math.min(scrollFactor * 4, 1); // Cap at 1.0
+                batchSize = Math.round(
+                    this.DEFAULT_BATCH_SIZE + 
+                    (this.MAX_CANDLES_PER_REQUEST - this.DEFAULT_BATCH_SIZE) * scaleFactor
+                );
+            }
+            
+            // For preemptive loading, increase the batch size
+            if (!scrollDistance) {
+                batchSize = Math.min(batchSize * this.dataCache.PREFETCH_MULTIPLIER, this.MAX_CANDLES_PER_REQUEST);
+            }
+            
+            // Ensure we never exceed the API limit
+            batchSize = Math.min(batchSize, this.MAX_CANDLES_PER_REQUEST);
+            
+            console.log(`[DataLoader] Calculated batch size: ${batchSize}, scroll factor: ${scrollFactor.toFixed(2)}`);
+            return batchSize;
+            
+        } catch (e) {
+            console.error('[DataLoader] Error calculating batch size:', e);
+            return this.DEFAULT_BATCH_SIZE;
+        }
+    }
 
     async load(callback) {
         // Attempt fetching bars from the largest API-supported interval down to 1m
-        const rawBars = 50;
+        const rawBars = 50 * this.dataCache.PREFETCH_MULTIPLIER; // Prefetch more data initially
         const targetMs = tfToMs(this.TF);
         
         // Log clear details about what we're trying to load
@@ -79,6 +248,9 @@ class DataLoader {
                 
                 // For higher timeframes, ensure data has volume and proper structure
                 this.validateData(finalData);
+                
+                // Add data to cache
+                this.addToCache(finalData);
                 
                 // Callback with full panes and tools definitions
                 callback({
@@ -134,7 +306,6 @@ class DataLoader {
                         {
                             type: "Brush",
                             label: "Brush",
-                            // group: "BrushTool",
                             icon: `
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg width="24px" height="24px" viewBox="0 -2 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -155,7 +326,6 @@ class DataLoader {
                         {
                             type: "LineTool",
                             label: "Line",
-                            // group: "LineTool",
                             icon: `
 <?xml version="1.0" encoding="utf-8"?><!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -165,7 +335,6 @@ class DataLoader {
                         {
                             type: "LineToolHorizontalRay",
                             label: "Horizontal Ray (Right Click)",
-                            // group: "LineToolHorizontalRay",
                             icon: `<svg fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24"><path d="M180-380q-42 0-71-29t-29-71q0-42 29-71t71-29q31 0 56 17t36 43h608v80H272q-11 26-36 43t-56 17Z"/></svg>`
                         },
                         {
@@ -201,6 +370,10 @@ class DataLoader {
                         }
                     ]
                 });
+                
+                // Preload additional historical data after initial load
+                this.preloadHistoricalData(finalData[0][0]);
+                
                 return;
             } catch (e) {
                 console.warn(`[DataLoader] Failed with interval ${interval}:`, e);
@@ -208,6 +381,25 @@ class DataLoader {
             }
         }
         console.error(`[DataLoader] All intervals failed for TF=${this.TF}`);
+    }
+    
+    // Preload historical data in the background
+    async preloadHistoricalData(fromTimestamp) {
+        // Don't preload if already loading
+        if (this.loading) return;
+        
+        // Give a small delay to not interfere with initial load
+        setTimeout(() => {
+            console.log(`[DataLoader] Preloading historical data from ${new Date(fromTimestamp).toISOString()}`);
+            
+            // Use our loadMore function but with a special flag
+            this.loadMore(fromTimestamp - 1, (chunk) => {
+                if (chunk && chunk.length) {
+                    console.log(`[DataLoader] Preloaded ${chunk.length} historical candles`);
+                    // We don't need to do anything with the data, it's in cache now
+                }
+            }, null, true);
+        }, 1000);
     }
 
     // Validate data for rendering
@@ -251,24 +443,103 @@ class DataLoader {
         }
     }
 
-    async loadMore(endTime, callback) {
+    // Process request queue to avoid spamming the API
+    processQueue() {
+        if (this.loadingQueue.length > 0 && !this.loading) {
+            const next = this.loadingQueue.shift();
+            this.executeLoadMore(next.endTime, next.callback, next.chartRange, next.isPrefetch);
+        }
+    }
+    
+    // Throttled load request - queues new requests if we're already loading
+    async loadMore(endTime, callback, chartRange = null, isPrefetch = false) {
+        // Check cache first if this isn't a prefetch
+        if (!isPrefetch) {
+            // Calculate the time range we're looking for
+            const targetMs = tfToMs(this.TF);
+            const batchSize = this.calculateOptimalBatchSize(chartRange, endTime);
+            const startTime = endTime - (batchSize * targetMs);
+            
+            // If we already have this data in cache, use it
+            if (this.hasDataInCache(startTime, endTime)) {
+                console.log(`[DataLoader] Using cached data for range ${new Date(startTime).toISOString()} to ${new Date(endTime).toISOString()}`);
+                const cachedData = this.getFromCache(startTime, endTime);
+                if (cachedData.length > 0) {
+                    callback(cachedData);
+                    return;
+                }
+            }
+        }
+        
+        // Don't queue duplicate requests for the same timestamp
+        if (this.loadingQueue.some(request => request.endTime === endTime)) {
+            console.log(`[DataLoader] Duplicate request for ${new Date(endTime).toISOString()} - ignoring`);
+            return;
+        }
+        
+        // Add to queue and process
+        this.loadingQueue.push({ endTime, callback, chartRange, isPrefetch });
+        this.processQueue();
+        
+        // Start a timer to process the queue if nothing happens
+        if (this.loadingQueue.length > 0 && !this.queueTimer) {
+            this.queueTimer = setTimeout(() => {
+                this.queueTimer = null;
+                this.processQueue();
+            }, this.MIN_REQUEST_INTERVAL);
+        }
+    }
+
+    // Actual implementation of loadMore
+    async executeLoadMore(endTime, callback, chartRange, isPrefetch = false) {
         if (this.loading) return;
+        
+        // Rate limiting - don't make requests too frequently
+        const now = Date.now();
+        if (now - this.lastRequestTime < this.MIN_REQUEST_INTERVAL) {
+            const waitTime = this.MIN_REQUEST_INTERVAL - (now - this.lastRequestTime);
+            console.log(`[DataLoader] Rate limiting - waiting ${waitTime}ms before next request`);
+            setTimeout(() => this.executeLoadMore(endTime, callback, chartRange, isPrefetch), waitTime);
+            return;
+        }
+        
         this.loading = true;
+        this.lastRequestTime = now;
+        
         const targetMs = tfToMs(this.TF);
-        const DEFAULT_BARS = 50;
+        
+        // Calculate optimal batch size based on scroll position
+        let batchSize = this.DEFAULT_BATCH_SIZE;
+        if (chartRange) {
+            batchSize = this.calculateOptimalBatchSize(chartRange, endTime);
+        }
+        
+        // For prefetch, we want more data
+        if (isPrefetch) {
+            batchSize = Math.min(batchSize * this.dataCache.PREFETCH_MULTIPLIER, this.MAX_CANDLES_PER_REQUEST);
+        }
+        
         // Build candidate intervals (descending ms)
         const candidates = API_INTERVALS
             .map(i => ({ i, ms: tfToMs(i) }))
             .filter(o => o.ms <= targetMs && targetMs % o.ms === 0)
             .sort((a, b) => b.ms - a.ms);
+        
         // Always try 1m as ultimate fallback
         const allCandidates = candidates.concat([{ i: '1m', ms: tfToMs('1m') }]);
+        
+        console.log(`[DataLoader] Loading historical data, batch size: ${batchSize}, endTime: ${new Date(endTime).toISOString()}, isPrefetch: ${isPrefetch}`);
+        
         for (let { i: interval, ms: baseMs } of allCandidates) {
-            const rawLimit = Math.ceil(DEFAULT_BARS * (targetMs / baseMs));
+            // Calculate how many raw candles we need based on target timeframe
+            const rawLimit = Math.ceil(batchSize * (targetMs / baseMs));
+            // Ensure we don't exceed API limits
+            const limit = Math.min(rawLimit, this.MAX_CANDLES_PER_REQUEST);
+            
             const url = `${this.URL}?symbol=${this.SYM}` +
-                        `&interval=${interval}&endTime=${endTime}&limit=${rawLimit}`;
+                      `&interval=${interval}&endTime=${endTime}&limit=${limit}`;
             try {
-                console.log(`Fetching historical data for ${this.SYM} at ${interval}, ending ${new Date(endTime).toISOString()}`);
+                console.log(`[DataLoader] Fetching historical data for ${this.SYM} at ${interval}, ending ${new Date(endTime).toISOString()}, limit=${limit}`);
                 const result = await fetch(url);
                 if (!result.ok) throw new Error(`HTTP ${result.status}`);
                 const raw = await result.json();
@@ -277,14 +548,26 @@ class DataLoader {
                 const chunk = interval === this.TF
                     ? formatted
                     : this.aggregate(formatted, baseMs, targetMs);
+                    
+                console.log(`[DataLoader] Received ${chunk.length} candles for ${this.TF}, oldest: ${new Date(chunk[0][0]).toISOString()}`);
+                
+                this.validateData(chunk);
+                
+                // Add to cache
+                this.addToCache(chunk);
+                
                 callback(chunk);
                 break;
             } catch (e) {
-                console.warn(`loadMore failed for interval ${interval}:`, e);
+                console.warn(`[DataLoader] loadMore failed for interval ${interval}:`, e);
                 continue;
             }
         }
+        
         this.loading = false;
+        
+        // Process next item in queue if any
+        setTimeout(() => this.processQueue(), 0);
     }
 
     format(x) {

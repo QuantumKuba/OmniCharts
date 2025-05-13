@@ -506,6 +506,7 @@
 
         /**
          * Function to load more data as the user scrolls left or more data becomes available
+         * This implementation uses the cache system to avoid redundant reprocessing
          */
         function loadMore() {
             if (!chart.hub.mainOv) {
@@ -520,17 +521,38 @@
             if (chart.range[0] < t0) {
                 console.log(`Requesting historical data before ${new Date(t0).toISOString()}`);
                 
+                // Pass the current chart range to help calculate optimal batch size
                 dl.loadMore(t0 - 1, (chunk) => {
                     if (chunk && chunk.length > 0) {
                         console.log(`Adding ${chunk.length} historical candles to chart`);
-                        // Prepend a new chunk at the beginning
-                        data.unshift(...chunk);
-                        chart.update("data"); // Update the chart
-                        chart.se.uploadAndExec(); // Execute the scripts through ScriptEngine
+                        
+                        // Check for duplicates before adding to avoid redundant processing
+                        let newCandles = chunk.filter(newCandle => {
+                            // Check if this candle already exists in the dataset
+                            return !data.some(existingCandle => existingCandle[0] === newCandle[0]);
+                        });
+                        
+                        if (newCandles.length === 0) {
+                            console.log("All candles already exist in dataset - no changes needed");
+                            return; // Skip update if no new candles
+                        }
+                        
+                        console.log(`Adding ${newCandles.length} unique new candles to chart`);
+                        
+                        // Prepend only unique new candles at the beginning
+                        data.unshift(...newCandles);
+                        
+                        // Only update if we actually added new data
+                        chart.update("data"); 
+                        
+                        // Only re-execute scripts if we've added new data
+                        if (newCandles.length > 0) {
+                            chart.se.uploadAndExec();
+                        }
                     } else {
                         console.warn("No historical data received to load");
                     }
-                });
+                }, chart.range);
             }
         }
 
