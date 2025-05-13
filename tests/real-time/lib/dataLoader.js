@@ -1,37 +1,29 @@
 import { tfToMs, msToTf } from './timeframeUtils.js';
+import config from '../../../src/config.js';
+
 const API_INTERVALS = ['1m','3m','5m','15m','30m','1h','2h','4h','6h','8h','12h','1d','3d','1w','1M'];
 
 class DataLoader {
-    constructor(symbol = 'BTCUSDT', timeframe = '5m') {
-        // Use Vite dev proxy to hit Binance REST without CORS
-        this.URL = "/api/v3/klines";
+    constructor(symbol = config.defaultSymbol, timeframe = config.defaultTimeframe) {
+        // Use API endpoint from config
+        this.URL = config.endpoints.klines;
         this.SYM = symbol;
         this._tf = timeframe; // Direct assignment to avoid circular reference
         this.loading = false;
         this.lastRequestTime = 0; // Track last request time for throttling
-        this.MIN_REQUEST_INTERVAL = 500; // Minimum ms between requests
-        this.MAX_CANDLES_PER_REQUEST = 1000; // Binance API limit
+        this.MIN_REQUEST_INTERVAL = config.minRequestInterval || 500; // Minimum ms between requests
+        this.MAX_CANDLES_PER_REQUEST = config.maxCandlesPerRequest || 1000; // Binance API limit
         this.DEFAULT_BATCH_SIZE = 50; // Default candles to fetch if we can't calculate
         this.SCROLL_THRESHOLD_FACTOR = 0.25; // How close to edge before loading more (0.25 = 25% of visible range)
         this.loadingQueue = []; // Queue pending load requests
         
         // Cache system to avoid refetching data
         this.dataCache = {
-            // Map of timestamps to cached data
-            // Key: timestamp, Value: array of candle data
             byTimestamp: new Map(),
-            
-            // Track the oldest timestamp we've fetched for this symbol/timeframe
             oldestTimestamp: Infinity,
-            
-            // Track the newest timestamp we've fetched for this symbol/timeframe
             newestTimestamp: -Infinity,
-            
-            // Used to identify when we need to reset the cache (symbol or timeframe change)
             symbol: symbol,
             timeframe: timeframe,
-            
-            // Pre-fetch settings
             PREFETCH_MULTIPLIER: 2, // How much additional data to prefetch (2x = twice the current view)
         };
     }
@@ -40,7 +32,6 @@ class DataLoader {
     set TF(value) {
         if (typeof value === 'number') {
             // Convert from milliseconds to string format if needed
-            // const { msToTf } = require('./timeframeUtils.js'); // Removed require
             this._tf = msToTf(value); // Uses imported msToTf
             console.log(`DataLoader: converted timeframe from ${value}ms to ${this._tf}`);
             

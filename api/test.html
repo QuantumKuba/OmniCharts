@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OmniCharts API Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    h1 {
+      color: #1a73e8;
+    }
+    button {
+      background-color: #1a73e8;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+      font-size: 14px;
+    }
+    button:hover {
+      background-color: #185abc;
+    }
+    pre {
+      background-color: #f0f0f0;
+      padding: 15px;
+      border-radius: 5px;
+      overflow: auto;
+      margin-top: 10px;
+      border: 1px solid #ddd;
+    }
+    .endpoint {
+      margin-bottom: 30px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background-color: white;
+    }
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #1a73e8;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      display: none;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <h1>OmniCharts API Test</h1>
+  <p>Use this page to test if the API endpoints are working correctly.</p>
+  
+  <div class="endpoint">
+    <h3>1. API Status Check</h3>
+    <p>Tests the basic API endpoint to confirm the server is running.</p>
+    <button id="apiStatusBtn">Check API Status</button>
+    <span id="apiStatusLoader" class="loader"></span>
+    <pre id="apiStatusResult">Results will appear here...</pre>
+  </div>
+  
+  <div class="endpoint">
+    <h3>2. Klines Endpoint Test</h3>
+    <p>Tests the Binance klines proxy endpoint.</p>
+    <div>
+      <label for="symbol">Symbol:</label>
+      <input id="symbol" type="text" value="BTCUSDT" />
+      <label for="interval">Interval:</label>
+      <select id="interval">
+        <option value="1m">1 minute</option>
+        <option value="5m" selected>5 minutes</option>
+        <option value="15m">15 minutes</option>
+        <option value="1h">1 hour</option>
+        <option value="4h">4 hours</option>
+        <option value="1d">1 day</option>
+      </select>
+      <label for="limit">Limit:</label>
+      <input id="limit" type="number" value="10" min="1" max="1000" />
+    </div>
+    <button id="klinesBtn">Test Klines Endpoint</button>
+    <span id="klinesLoader" class="loader"></span>
+    <pre id="klinesResult">Results will appear here...</pre>
+  </div>
+  
+  <div class="endpoint">
+    <h3>3. General Proxy Endpoint Test</h3>
+    <p>Tests the general Binance proxy endpoint.</p>
+    <div>
+      <label for="endpoint">Endpoint:</label>
+      <select id="endpoint">
+        <option value="exchangeInfo">Exchange Info</option>
+        <option value="ticker/price?symbol=BTCUSDT">BTC Price</option>
+        <option value="ticker/24hr?symbol=ETHUSDT">ETH 24hr Stats</option>
+      </select>
+    </div>
+    <button id="proxyBtn">Test Proxy Endpoint</button>
+    <span id="proxyLoader" class="loader"></span>
+    <pre id="proxyResult">Results will appear here...</pre>
+  </div>
+
+  <script>
+    const apiBaseUrl = window.location.origin;
+    
+    function formatJSON(json) {
+      return JSON.stringify(json, null, 2);
+    }
+    
+    async function testEndpoint(url, resultElement, loaderElement) {
+      try {
+        loaderElement.style.display = 'inline-block';
+        const response = await fetch(url);
+        const data = await response.json();
+        resultElement.textContent = formatJSON(data);
+        resultElement.style.color = response.ok ? '#333' : '#d32f2f';
+      } catch (error) {
+        resultElement.textContent = `Error: ${error.message}`;
+        resultElement.style.color = '#d32f2f';
+      } finally {
+        loaderElement.style.display = 'none';
+      }
+    }
+    
+    document.getElementById('apiStatusBtn').addEventListener('click', () => {
+      const resultElement = document.getElementById('apiStatusResult');
+      const loaderElement = document.getElementById('apiStatusLoader');
+      testEndpoint(`${apiBaseUrl}/api`, resultElement, loaderElement);
+    });
+    
+    document.getElementById('klinesBtn').addEventListener('click', () => {
+      const symbol = document.getElementById('symbol').value || 'BTCUSDT';
+      const interval = document.getElementById('interval').value || '1m';
+      const limit = document.getElementById('limit').value || '10';
+      
+      const url = `${apiBaseUrl}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+      const resultElement = document.getElementById('klinesResult');
+      const loaderElement = document.getElementById('klinesLoader');
+      
+      testEndpoint(url, resultElement, loaderElement);
+    });
+    
+    document.getElementById('proxyBtn').addEventListener('click', () => {
+      const endpoint = document.getElementById('endpoint').value;
+      const url = `${apiBaseUrl}/api/v3/proxy?url=${encodeURIComponent(endpoint)}`;
+      const resultElement = document.getElementById('proxyResult');
+      const loaderElement = document.getElementById('proxyLoader');
+      
+      testEndpoint(url, resultElement, loaderElement);
+    });
+  </script>
+</body>
+</html>

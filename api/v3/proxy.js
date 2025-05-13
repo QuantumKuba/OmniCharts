@@ -1,5 +1,15 @@
 // General purpose proxy to handle any Binance API request
 export default async function handler(req, res) {
+  // Set CORS headers for all responses
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // Handle OPTIONS method for CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
   try {
     // Extract path and query parameters
     const { url, ...queryParams } = req.query;
@@ -17,34 +27,27 @@ export default async function handler(req, res) {
 
     // Forward the request to Binance with the same method
     const response = await fetch(binanceUrl, {
-      method: req.method,
+      method: req.method === 'OPTIONS' ? 'GET' : req.method, // Default to GET for OPTIONS
       headers: {
         'Content-Type': 'application/json',
-        // Forward any other necessary headers
       },
       // If this is a POST/PUT request, forward the body
       body: ['POST', 'PUT'].includes(req.method) ? JSON.stringify(req.body) : undefined,
     });
     
     if (!response.ok) {
-      throw new Error(`Binance API responded with status: ${response.status}`);
+      console.error(`[API General Proxy] Binance API responded with status: ${response.status}`);
+      return res.status(response.status).json({ 
+        error: `Binance API error: ${response.statusText}`,
+        status: response.status
+      });
     }
 
     const data = await response.json();
-
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    res.status(200).json(data);
+    return res.status(200).json(data);
+    
   } catch (error) {
     console.error('[API General Proxy] Error:', error.message);
-    
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 }
