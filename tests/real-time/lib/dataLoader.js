@@ -1,4 +1,4 @@
-import { tfToMs } from './timeframeUtils.js';
+import { tfToMs, msToTf } from './timeframeUtils.js';
 const API_INTERVALS = ['1m','3m','5m','15m','30m','1h','2h','4h','6h','8h','12h','1d','3d','1w','1M'];
 
 class DataLoader {
@@ -40,8 +40,8 @@ class DataLoader {
     set TF(value) {
         if (typeof value === 'number') {
             // Convert from milliseconds to string format if needed
-            const { msToTf } = require('./timeframeUtils.js');
-            this._tf = msToTf(value);
+            // const { msToTf } = require('./timeframeUtils.js'); // Removed require
+            this._tf = msToTf(value); // Uses imported msToTf
             console.log(`DataLoader: converted timeframe from ${value}ms to ${this._tf}`);
             
             // Reset cache when timeframe changes
@@ -148,7 +148,7 @@ class DataLoader {
     calculateOptimalBatchSize(visibleRange, oldestTime) {
         try {
             // If we don't have a valid range yet, use default
-            if (!visibleRange || !Array.isArray(visibleRange) || visibleRange.length < 2) {
+            if (!visibleRange || !Array.isArray(visibleRange) || visibleRange.length < 2 || visibleRange[1] <= visibleRange[0]) {
                 return this.DEFAULT_BATCH_SIZE;
             }
             
@@ -156,37 +156,45 @@ class DataLoader {
             const visibleTimespan = visibleRange[1] - visibleRange[0];
             
             // Calculate how far back we're scrolling (distance from visible range to oldest loaded candle)
-            const scrollDistance = visibleRange[0] - oldestTime;
+            const scrollDistance = visibleRange[0] - oldestTime; // Can be negative if scrolling left (older data)
             
             // How far we are scrolling as a percentage of visible range
             const scrollFactor = Math.abs(scrollDistance) / visibleTimespan;
             
-            // When user scrolls very far back, load more candles per request
-            // The formula scales from the default batch size up to the maximum allowed
             let batchSize;
-            
+            const maxEffectiveBatch = this.MAX_CANDLES_PER_REQUEST; // Max target candles we aim for
+
             if (scrollFactor <= this.SCROLL_THRESHOLD_FACTOR) {
-                // If we're just scrolling a little bit, use the default batch size
-                batchSize = this.DEFAULT_BATCH_SIZE; 
+                batchSize = this.DEFAULT_BATCH_SIZE;
             } else {
-                // Scale the batch size based on how far back we're scrolling
-                // Starting from DEFAULT_BATCH_SIZE and increasing up to MAX_CANDLES_PER_REQUEST
-                const scaleFactor = Math.min(scrollFactor * 4, 1); // Cap at 1.0
+                let dynamicFactor;
+                // Scale from SCROLL_THRESHOLD_FACTOR up to 1.0 (one full screen width scrolled)
+                if (scrollFactor <= 1.0) {
+                    // Linearly scale dynamicFactor from 0 to 0.5 as scrollFactor goes from THRESHOLD to 1.0
+                    dynamicFactor = ((scrollFactor - this.SCROLL_THRESHOLD_FACTOR) / (1.0 - this.SCROLL_THRESHOLD_FACTOR)) * 0.5;
+                } else {
+                    // For scrolls larger than one screen width (scrollFactor > 1.0)
+                    // Linearly scale dynamicFactor from 0.5 to 1.0 as scrollFactor goes from 1.0 to 3.0 (e.g.)
+                    dynamicFactor = 0.5 + Math.min((scrollFactor - 1.0) / 2.0, 1.0) * 0.5; // Cap second part at 0.5
+                }
+                dynamicFactor = Math.max(0, Math.min(dynamicFactor, 1.0)); // Ensure 0 <= dynamicFactor <= 1
+
                 batchSize = Math.round(
-                    this.DEFAULT_BATCH_SIZE + 
-                    (this.MAX_CANDLES_PER_REQUEST - this.DEFAULT_BATCH_SIZE) * scaleFactor
+                    this.DEFAULT_BATCH_SIZE +
+                    (maxEffectiveBatch - this.DEFAULT_BATCH_SIZE) * dynamicFactor
                 );
             }
             
-            // For preemptive loading, increase the batch size
-            if (!scrollDistance) {
-                batchSize = Math.min(batchSize * this.dataCache.PREFETCH_MULTIPLIER, this.MAX_CANDLES_PER_REQUEST);
-            }
-            
-            // Ensure we never exceed the API limit
+            // The `if (!scrollDistance)` prefetch logic was removed here,
+            // as prefetching is handled by the `isPrefetch` flag in `executeLoadMore`
+            // and the `preloadHistoricalData` method.
+
+            // Ensure batchSize for target candles is capped (e.g., by MAX_CANDLES_PER_REQUEST,
+            // interpreting it as a sensible upper limit for target candles too).
             batchSize = Math.min(batchSize, this.MAX_CANDLES_PER_REQUEST);
+            batchSize = Math.max(batchSize, this.DEFAULT_BATCH_SIZE); // Ensure it's at least default
             
-            console.log(`[DataLoader] Calculated batch size: ${batchSize}, scroll factor: ${scrollFactor.toFixed(2)}`);
+            console.log(`[DataLoader] Calculated batch size (target candles): ${batchSize}, scroll factor: ${scrollFactor.toFixed(2)}`);
             return batchSize;
             
         } catch (e) {
@@ -492,9 +500,13 @@ class DataLoader {
 
     // Actual implementation of loadMore
     async executeLoadMore(endTime, callback, chartRange, isPrefetch = false) {
-        if (this.loading) return;
+        if (this.loading) {
+            // This request will be queued by the caller (loadMore) if this.loading is true.
+            // If processQueue calls this while loading, it's a bug in queue logic.
+            // For safety, if called directly when loading, just return.
+            return;
+        }
         
-        // Rate limiting - don't make requests too frequently
         const now = Date.now();
         if (now - this.lastRequestTime < this.MIN_REQUEST_INTERVAL) {
             const waitTime = this.MIN_REQUEST_INTERVAL - (now - this.lastRequestTime);
@@ -504,70 +516,133 @@ class DataLoader {
         }
         
         this.loading = true;
-        this.lastRequestTime = now;
+        this.lastRequestTime = now; // Mark time for the first potential fetch
         
         const targetMs = tfToMs(this.TF);
-        
-        // Calculate optimal batch size based on scroll position
-        let batchSize = this.DEFAULT_BATCH_SIZE;
+        let desiredTargetCandles = this.DEFAULT_BATCH_SIZE;
         if (chartRange) {
-            batchSize = this.calculateOptimalBatchSize(chartRange, endTime);
+            desiredTargetCandles = this.calculateOptimalBatchSize(chartRange, endTime);
         }
         
-        // For prefetch, we want more data
         if (isPrefetch) {
-            batchSize = Math.min(batchSize * this.dataCache.PREFETCH_MULTIPLIER, this.MAX_CANDLES_PER_REQUEST);
+            desiredTargetCandles = Math.min(
+                Math.round(desiredTargetCandles * this.dataCache.PREFETCH_MULTIPLIER),
+                this.MAX_CANDLES_PER_REQUEST // Cap target prefetch count
+            );
         }
+        // Ensure desiredTargetCandles is at least 1 if we are to fetch.
+        desiredTargetCandles = Math.max(desiredTargetCandles, 1);
+
+        console.log(`[DataLoader] executeLoadMore: Aiming for ${desiredTargetCandles} target candles for TF=${this.TF}. EndTime: ${new Date(endTime).toISOString()}, isPrefetch: ${isPrefetch}`);
         
-        // Build candidate intervals (descending ms)
-        const candidates = API_INTERVALS
-            .map(i => ({ i, ms: tfToMs(i) }))
+        const baseApiIntervals = API_INTERVALS
+            .map(i => ({ interval: i, ms: tfToMs(i) }))
             .filter(o => o.ms <= targetMs && targetMs % o.ms === 0)
             .sort((a, b) => b.ms - a.ms);
-        
-        // Always try 1m as ultimate fallback
-        const allCandidates = candidates.concat([{ i: '1m', ms: tfToMs('1m') }]);
-        
-        console.log(`[DataLoader] Loading historical data, batch size: ${batchSize}, endTime: ${new Date(endTime).toISOString()}, isPrefetch: ${isPrefetch}`);
-        
-        for (let { i: interval, ms: baseMs } of allCandidates) {
-            // Calculate how many raw candles we need based on target timeframe
-            const rawLimit = Math.ceil(batchSize * (targetMs / baseMs));
-            // Ensure we don't exceed API limits
-            const limit = Math.min(rawLimit, this.MAX_CANDLES_PER_REQUEST);
+        const allCandidateIntervals = baseApiIntervals.concat([{ interval: '1m', ms: tfToMs('1m') }]);
+
+        let finalAggregatedChunk = [];
+        let overallSuccess = false;
+
+        for (let { interval: baseInterval, ms: baseMs } of allCandidateIntervals) {
+            const aggregationRatio = targetMs / baseMs;
+            let collectedRawCandlesForThisBase = [];
+            let currentRequestEndTimeForLoop = endTime;
+            const MAX_INTERNAL_FETCH_LOOPS = 5; // Safety cap for internal loops
+            let internalFetchCount = 0;
+
+            const estimatedTotalRawNeeded = Math.ceil(desiredTargetCandles * aggregationRatio);
             
-            const url = `${this.URL}?symbol=${this.SYM}` +
-                      `&interval=${interval}&endTime=${endTime}&limit=${limit}`;
-            try {
-                console.log(`[DataLoader] Fetching historical data for ${this.SYM} at ${interval}, ending ${new Date(endTime).toISOString()}, limit=${limit}`);
-                const result = await fetch(url);
-                if (!result.ok) throw new Error(`HTTP ${result.status}`);
-                const raw = await result.json();
-                if (!raw || raw.length === 0) throw new Error('No data');
-                const formatted = raw.map(x => this.format(x));
-                const chunk = interval === this.TF
-                    ? formatted
-                    : this.aggregate(formatted, baseMs, targetMs);
+            console.log(`[DataLoader] Trying baseInterval: ${baseInterval} (ratio: ${aggregationRatio}). Estimated raw needed: ${estimatedTotalRawNeeded} for ${desiredTargetCandles} target.`);
+
+            while (internalFetchCount < MAX_INTERNAL_FETCH_LOOPS) {
+                internalFetchCount++;
+
+                const remainingRawToCollect = estimatedTotalRawNeeded - collectedRawCandlesForThisBase.length;
+                
+                if (desiredTargetCandles > 0 && remainingRawToCollect <= 0 && collectedRawCandlesForThisBase.length > 0) {
+                    // Already collected enough raw candles for the desired target count
+                    break;
+                }
+
+                let rawLimitForThisAPICall = Math.min(this.MAX_CANDLES_PER_REQUEST, remainingRawToCollect > 0 ? remainingRawToCollect : this.MAX_CANDLES_PER_REQUEST);
+                rawLimitForThisAPICall = Math.max(rawLimitForThisAPICall, 1); // Ensure fetching at least 1 raw candle
+
+                const url = `${this.URL}?symbol=${this.SYM}&interval=${baseInterval}&endTime=${currentRequestEndTimeForLoop}&limit=${rawLimitForThisAPICall}`;
+                console.log(`[DataLoader] Internal fetch (${internalFetchCount}/${MAX_INTERNAL_FETCH_LOOPS}): ${baseInterval}, end: ${new Date(currentRequestEndTimeForLoop).toISOString()}, limit: ${rawLimitForThisAPICall}`);
+
+                try {
+                    // If this is not the very first fetch of this executeLoadMore call
+                    if (internalFetchCount > 1 || this.lastRequestTime !== now) { // `now` is the timestamp before the first fetch
+                         // Check if we need to wait due to MIN_REQUEST_INTERVAL from previous fetch
+                        const timeSinceLast = Date.now() - this.lastRequestTime;
+                        if (timeSinceLast < this.MIN_REQUEST_INTERVAL) {
+                            const internalWaitTime = this.MIN_REQUEST_INTERVAL - timeSinceLast;
+                            console.log(`[DataLoader] Internal loop rate limiting - waiting ${internalWaitTime}ms`);
+                            await new Promise(resolve => setTimeout(resolve, internalWaitTime));
+                        }
+                    }
                     
-                console.log(`[DataLoader] Received ${chunk.length} candles for ${this.TF}, oldest: ${new Date(chunk[0][0]).toISOString()}`);
-                
-                this.validateData(chunk);
-                
-                // Add to cache
-                this.addToCache(chunk);
-                
-                callback(chunk);
-                break;
-            } catch (e) {
-                console.warn(`[DataLoader] loadMore failed for interval ${interval}:`, e);
-                continue;
+                    this.lastRequestTime = Date.now(); // Update time before this fetch
+                    const result = await fetch(url);
+                    if (!result.ok) throw new Error(`HTTP ${result.status} from ${url}`);
+                    const rawBatch = await result.json();
+
+                    if (!rawBatch || rawBatch.length === 0) {
+                        console.log(`[DataLoader] No data from ${baseInterval} ending ${new Date(currentRequestEndTimeForLoop).toISOString()}`);
+                        break; // Break internal loop for this baseInterval, try next baseInterval or finish
+                    }
+
+                    const formattedBatch = rawBatch.map(x => this.format(x));
+                    collectedRawCandlesForThisBase.unshift(...formattedBatch); // Prepend to keep sorted by time
+
+                    // Update for next potential internal loop
+                    currentRequestEndTimeForLoop = formattedBatch[0][0]; 
+
+                    if (formattedBatch.length < rawLimitForThisAPICall || currentRequestEndTimeForLoop <= 0) {
+                        console.log(`[DataLoader] Fetched all available data or hit start for ${baseInterval}.`);
+                        break; // Reached the beginning of history for this interval
+                    }
+                    if (desiredTargetCandles > 0 && (collectedRawCandlesForThisBase.length >= estimatedTotalRawNeeded)) {
+                        break; // Collected enough raw data for the desired target candles
+                    }
+                } catch (e) {
+                    console.warn(`[DataLoader] Internal fetch for ${baseInterval} failed:`, e);
+                    break; // Break internal loop, try next baseInterval
+                }
+            } // End of while (internalFetchCount)
+
+            if (collectedRawCandlesForThisBase.length > 0) {
+                collectedRawCandlesForThisBase.sort((a, b) => a[0] - b[0]); // Ensure correct order before aggregation
+
+                const aggregated = (baseMs === targetMs || aggregationRatio === 1)
+                    ? collectedRawCandlesForThisBase
+                    : this.aggregate(collectedRawCandlesForThisBase, baseMs, targetMs);
+
+                if (aggregated.length > 0) {
+                    // If we over-fetched target candles due to raw data granularity, take the most recent ones.
+                    finalAggregatedChunk = (aggregated.length > desiredTargetCandles && desiredTargetCandles > 0)
+                        ? aggregated.slice(-desiredTargetCandles)
+                        : aggregated;
+
+                    console.log(`[DataLoader] Success via ${baseInterval}. Produced ${finalAggregatedChunk.length} target candles for TF=${this.TF}. Oldest: ${new Date(finalAggregatedChunk[0][0]).toISOString()}`);
+                    this.validateData(finalAggregatedChunk);
+                    this.addToCache(finalAggregatedChunk);
+                    overallSuccess = true;
+                    break; // Break from looping through baseCandidateIntervals
+                }
             }
+        } // End of for (allCandidateIntervals)
+
+        if (overallSuccess && finalAggregatedChunk.length > 0) {
+            callback(finalAggregatedChunk);
+        } else {
+            console.log(`[DataLoader] Failed to load sufficient data or no data found for TF=${this.TF} ending ${new Date(endTime).toISOString()}`);
+            callback([]); // Send empty array on failure or if no data
         }
-        
+
         this.loading = false;
-        
-        // Process next item in queue if any
-        setTimeout(() => this.processQueue(), 0);
+        setTimeout(() => this.processQueue(), 0); // Process queue for any pending requests
     }
 
     format(x) {
