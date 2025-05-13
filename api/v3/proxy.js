@@ -11,11 +11,22 @@ export default async function handler(req, res) {
   }
   
   try {
+    // For debugging
+    console.log('API endpoint hit: /api/v3/proxy');
+    console.log('Query parameters:', req.query);
+    
     // Extract path and query parameters
     const { url, ...queryParams } = req.query;
     
+    if (!url) {
+      console.log('Missing URL parameter');
+      return res.status(400).json({
+        error: 'Missing URL parameter. Please provide a Binance API endpoint.'
+      });
+    }
+    
     // Construct full URL with query parameters
-    let binanceUrl = `https://api.binance.com/api/v3/${url || ''}`;
+    let binanceUrl = `https://api.binance.com/api/v3/${url}`;
     
     // Add query parameters if they exist
     const queryString = new URLSearchParams(queryParams).toString();
@@ -23,7 +34,7 @@ export default async function handler(req, res) {
       binanceUrl += `?${queryString}`;
     }
 
-    console.log(`[API General Proxy] Forwarding request to: ${binanceUrl}`);
+    console.log(`Forwarding request to: ${binanceUrl}`);
 
     // Forward the request to Binance with the same method
     const response = await fetch(binanceUrl, {
@@ -36,7 +47,7 @@ export default async function handler(req, res) {
     });
     
     if (!response.ok) {
-      console.error(`[API General Proxy] Binance API responded with status: ${response.status}`);
+      console.error(`Binance API responded with status: ${response.status}`);
       return res.status(response.status).json({ 
         error: `Binance API error: ${response.statusText}`,
         status: response.status
@@ -44,10 +55,12 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
+    console.log('Proxy request successful');
+    
     return res.status(200).json(data);
     
   } catch (error) {
-    console.error('[API General Proxy] Error:', error.message);
+    console.error('API Error:', error.message);
     return res.status(500).json({ error: error.message });
   }
 }

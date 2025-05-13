@@ -11,11 +11,16 @@ export default async function handler(req, res) {
   }
   
   try {
+    // For debugging
+    console.log('API endpoint hit: /api/v3/klines');
+    console.log('Query parameters:', req.query);
+
     // Extract query parameters from the request
     const { symbol, interval, limit, endTime } = req.query;
     
     // Check for required parameters
     if (!symbol || !interval) {
+      console.log('Missing required parameters');
       return res.status(400).json({ 
         error: 'Missing required parameters. Both symbol and interval are required.'
       });
@@ -28,14 +33,14 @@ export default async function handler(req, res) {
     if (limit) binanceUrl += `&limit=${limit}`;
     if (endTime) binanceUrl += `&endTime=${endTime}`;
 
-    console.log(`[API Proxy] Forwarding request to: ${binanceUrl}`);
+    console.log(`Forwarding request to: ${binanceUrl}`);
 
     // Make the request to Binance
     const response = await fetch(binanceUrl);
     
     // Check if the request was successful
     if (!response.ok) {
-      console.error(`[API Proxy] Binance API responded with status: ${response.status}`);
+      console.error(`Binance API responded with status: ${response.status}`);
       return res.status(response.status).json({ 
         error: `Binance API error: ${response.statusText}`,
         status: response.status
@@ -44,11 +49,12 @@ export default async function handler(req, res) {
 
     // Parse the response as JSON
     const data = await response.json();
+    console.log(`Success! Received ${data.length} data points`);
 
     // Send the response back to the client
     return res.status(200).json(data);
   } catch (error) {
-    console.error('[API Proxy] Error:', error.message);
+    console.error('API Error:', error.message);
     return res.status(500).json({ error: error.message });
   }
 }

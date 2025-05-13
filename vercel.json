@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "builds": [
     {
       "src": "package.json",
@@ -13,10 +15,23 @@
       "use": "@vercel/node"
     }
   ],
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "src": "/api/v3/klines",
+      "dest": "/api/v3/klines.js"
+    },
+    {
+      "src": "/api/v3/proxy",
+      "dest": "/api/v3/proxy.js"
+    },
+    {
+      "src": "/api",
+      "dest": "/api/index.js"
     },
     {
       "src": "/(.*)",
