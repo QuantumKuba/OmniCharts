@@ -22,6 +22,13 @@ const config = {
   // API request limits
   maxCandlesPerRequest: 1000,
   minRequestInterval: 500, // ms
+
+  // WebSocket URL
+  // For production, it will be wss://<your-app-domain>/api/v3/live
+  // For local dev, it will be ws://localhost:<port>/api/v3/live
+  websocketUrl: isProduction 
+    ? `wss://${window.location.hostname}/api/v3/live` 
+    : `ws://${window.location.hostname}:3000/api/v3/live`, // Assuming Vercel dev runs on 3000 or adjust if different
 };
 
 export default config;

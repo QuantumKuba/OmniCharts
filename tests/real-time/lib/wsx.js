@@ -1,4 +1,5 @@
 //import WebSocket from 'ws'
+import config from '../../../src/config.js';
 
 var last_event = Infinity
 var token = ''
@@ -23,13 +24,13 @@ async function init(syms) {
     // If we already have an active connection, properly terminate it first
     if (ws) {
         // Properly close any existing WebSocket
-        terminate();
+        terminate(); // This will set ws to null
         ready = false; // Reset the ready state for the new connection
     }
     
     // Reset reconnection attempts when explicitly initializing
     reconnectAttempts = 0;
-    symbols = syms;
+    symbols = syms; // Store the symbols to subscribe to
     
     // Clear any pending reconnect timers
     if (reconnectTimeout) {
@@ -37,216 +38,266 @@ async function init(syms) {
         reconnectTimeout = null;
     }
     
-    start_hf(symbols);
+    start_connection(); // Changed from start_hf to a more generic name
     
-    // If connection error, try again with delay
-    setTimeout(() => {
+    // If connection error, try again with delay - this might be too aggressive or handled by reconnect logic
+    // Consider removing or adjusting this generic timeout if reconnect logic is robust
+    /*setTimeout(() => {
         if (!ready && !reconnecting && !terminated) init(symbols);
-    }, 10000);
+    }, 10000);*/
 }
 
-function start_hf() {
-    // To subscribe to this channel:
-    var msg = syms => ({
-        'method': 'SUBSCRIBE',
-        "params": syms,
-        "id": 1
-    })
+function start_connection() {
+    // Message format for our Vercel proxy
+    const subscribeMsg = {
+        action: 'subscribe',
+        symbols: symbols // Send the plain symbols array (e.g., ["BTCUSDT", "ETHUSDT"])
+    };
     
-    // Create a new WebSocket connection
+    // Create a new WebSocket connection to the Vercel proxy
     try {
-        ws = new WebSocket(`wss://stream.binance.com:9443/ws`);
+        console.log(`[wsx] Connecting to WebSocket proxy: ${config.websocketUrl}`);
+        ws = new WebSocket(config.websocketUrl);
         
         ws.onmessage = function(e) {
             try {
-                let data = JSON.parse(e.data)
-                if (!data.s) return print(data)
-                switch (data.e) {
-                    case 'aggTrade':
-                        // Only process trades for current symbols
-                        // Ensure case-insensitive comparison
-                        const dataSymbol = data.s.toUpperCase();
-                        if (symbols.some(s => s.toUpperCase() === dataSymbol)) {
-                            _ontrades({
-                                symbol: dataSymbol,
-                                price: parseFloat(data.p),
-                                size: parseFloat(data.q),
-                            })
-                        }
-                        break
-                    case 'ping':
-                        console.log('PING', data)
-                        break
+                const data = JSON.parse(e.data.toString());
+
+                // Handle status messages from the proxy
+                if (data.type === 'status' || data.type === 'error') {
+                    console.log(`[wsx] Proxy status/error: ${data.message}`);
+                    if (data.message && data.message.includes("Subscribed to Binance")) {
+                        ready = true; // Mark as ready when subscription is confirmed by proxy
+                        _onready(); // Call the ready callback
+                    }
+                    return;
                 }
-                last_event = now()
+
+                // Assuming data from Binance is relayed directly
+                // The proxy sends raw Binance messages, so 'data.s' should exist for trades
+                if (!data.s && !data.stream) { // Binance streams might have 'stream' field
+                     console.log('[wsx] Received non-trade message or unknown format:', data);
+                     return;
+                }
                 
-                // Reset reconnect attempts on successful data
-                if (reconnectAttempts > 0) {
-                    reconnectAttempts = 0;
+                const streamSymbol = data.s ? data.s.toUpperCase() : (data.stream ? data.stream.split('@')[0].toUpperCase() : null);
+
+                if (data.e === 'aggTrade' || (data.data && data.data.e === 'aggTrade')) {
+                    const tradeData = data.data || data; // Handle wrapped data if present
+                    if (symbols.some(s => s.toUpperCase() === streamSymbol)) {
+                        _ontrades({
+                            symbol: streamSymbol,
+                            price: parseFloat(tradeData.p),
+                            size: parseFloat(tradeData.q),
+                        });
+                    }
+                } else if (data.e === 'ping' || (data.data && data.data.e === 'ping')) {
+                    console.log('[wsx] PING received', data);
+                    // Potentially send PONG back to proxy if required, though proxy should handle Binance pings
+                } else {
+                    // console.log('[wsx] Other message type:', data.e || data);
                 }
-            } catch (e) {
-                // log
-                console.log(e.toString())
+
+                last_event = now();
+                if (reconnectAttempts > 0) {
+                    reconnectAttempts = 0; // Reset on successful data
+                }
+            } catch (err) {
+                console.error('[wsx] Error processing message:', err.toString(), "Raw data:", e.data);
             }
         };
         
         ws.onopen = function() {
             try {
-                // Map symbols to lowercase and add @aggTrade suffix
-                let syms = symbols.map(x => x.toLowerCase() + "@aggTrade")
-                console.log('WebSocket Connected - Subscribing to:', symbols)
-                console.log('SEND >>>', JSON.stringify(msg(syms)))
-                ws.send(JSON.stringify(msg(syms)))
+                console.log('[wsx] WebSocket connected to proxy. Subscribing to symbols:', symbols);
+                console.log('[wsx] SEND >>>', JSON.stringify(subscribeMsg));
+                ws.send(JSON.stringify(subscribeMsg)); // Send subscription message to proxy
                 
-                // Reset reconnect attempts on successful connection
-                reconnectAttempts = 0;
-            } catch(e) {
-                console.log(e.toString())
+                // Note: 'ready' state and _onready() call will be triggered by proxy's confirmation message.
+                reconnectAttempts = 0; // Reset on successful connection to proxy
+            } catch(err) {
+                console.error('[wsx] Error on WebSocket open:', err.toString());
             }
         };
         
         ws.onclose = function (e) {
-            if (terminated) return; // Don't reconnect if terminate was called
-            
-            switch (e.code) {
-                case 1000:
-                    console.log("WebSocket: closed normally");
-                    break;
-                default:
-                    console.log(`WebSocket closed with code: ${e.code}, reason: ${e.reason}`);
-                    reconnect();
-                    break;
+            if (terminated) {
+                console.log("[wsx] WebSocket closed (terminated).");
+                return;
+            }
+            ready = false; // No longer ready
+            console.log(`[wsx] WebSocket closed with code: ${e.code}, reason: ${e.reason || 'No reason'}`);
+            if (e.code !== 1000) { // Don't auto-reconnect on normal closure
+                 reconnect();
             }
         };
         
-        ws.onerror = function (e) {
-            console.log("WebSocket error:", e);
-            // Only reconnect if not terminated
+        ws.onerror = function (err) {
+            ready = false; // No longer ready
+            console.error("[wsx] WebSocket error:", err.message || err);
             if (!terminated) {
-                reconnect();
+                // ws.onclose will typically be called after an error, which then calls reconnect.
+                // However, if onclose is not called, this ensures a reconnect attempt.
+                // To avoid double reconnects, check if already reconnecting.
+                if (!reconnecting) {
+                    reconnect();
+                }
             }
         };
     } catch (error) {
-        console.error("Error creating WebSocket:", error);
-        reconnect();
+        console.error("[wsx] Error creating WebSocket connection to proxy:", error);
+        if (!terminated) {
+             reconnect();
+        }
     }
 }
 
 function add_symbol(s) {
-    if (symbols.includes(s)) return; // Already subscribed
+    if (symbols.includes(s)) {
+        console.log(`[wsx] Symbol ${s} already in subscription list.`);
+        return;
+    }
     
     symbols.push(s);
-    
-    var msg = sym => ({
-        'method': 'SUBSCRIBE',
-        "params": [sym.toLowerCase() + "@aggTrade"],
-        "id": 1
-    })
+    console.log(`[wsx] Added symbol ${s}. New list:`, symbols);
+
+    // Send updated subscription to proxy
+    const subscribeMsg = {
+        action: 'subscribe',
+        symbols: symbols // Send the full updated list
+    };
     
     try {
         if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(msg(s)))
+            console.log('[wsx] Resubscribing with updated symbol list:', symbols);
+            ws.send(JSON.stringify(subscribeMsg));
         } else {
-            // If websocket isn't ready, reinitialize
-            init(symbols);
+            console.log('[wsx] WebSocket not open. Re-initializing for new symbol list.');
+            // If websocket isn't ready, reinitialize with the new full list of symbols
+            // Terminate existing connection attempt before re-init
+            if (ws) terminate(); 
+            init(symbols); // init will call start_connection
         }
     } catch(e) {
-        console.log(e.toString())
+        console.error('[wsx] Error adding symbol and resubscribing:', e.toString());
     }
 }
 
 function reconnect() {
-    if (terminated || reconnecting) return;
+    if (terminated || reconnecting) {
+        console.log(`[wsx] Reconnect skipped: terminated=${terminated}, reconnecting=${reconnecting}`);
+        return;
+    }
     
     reconnecting = true;
+    ready = false;
     reconnectAttempts++;
     
-    // Exponential backoff for reconnection attempts
-    const backoffTime = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000);
+    const backoffTime = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000); // Max 30s
     
-    console.log(`Reconnecting (attempt ${reconnectAttempts}/${maxReconnectAttempts})... Next attempt in ${backoffTime/1000}s`);
+    console.log(`[wsx] Reconnecting (attempt ${reconnectAttempts}/${maxReconnectAttempts})... Next attempt in ${backoffTime/1000}s`);
     
     try {
         if (ws) {
             try {
-                ws.close();
+                ws.onopen = null; // Remove handlers to prevent issues during forced close
+                ws.onmessage = null;
+                ws.onerror = null;
+                ws.onclose = null;
+                if (ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
+                    ws.close();
+                }
             } catch (e) {
-                console.log("Error closing WebSocket:", e);
+                console.warn("[wsx] Error closing WebSocket during reconnect prep:", e.toString());
             }
             ws = null;
         }
         
         if (reconnectAttempts <= maxReconnectAttempts) {
-            // Clear any existing timeout
             if (reconnectTimeout) {
                 clearTimeout(reconnectTimeout);
             }
-            
-            // Schedule reconnection
             reconnectTimeout = setTimeout(() => {
                 reconnecting = false;
-                start_hf(symbols);
+                if (!terminated) { // Double check not terminated before starting
+                    start_connection(); // Use the new function name
+                } else {
+                    console.log("[wsx] Reconnect aborted as connection was terminated.");
+                }
             }, backoffTime);
         } else {
-            console.log("Max reconnection attempts reached. Please refresh the page.");
+            console.error("[wsx] Max reconnection attempts reached. Please check connection or refresh.");
             reconnecting = false;
+            // Optionally call a global error handler or notify UI
         }
     } catch(e) {
-        console.log(e.toString())
+        console.error('[wsx] Error in reconnect logic:', e.toString());
+        reconnecting = false; // Ensure state is reset
     }
 }
 
-function print(data) {
-    // TODO: refine the chart
-    if (reconnecting) {
-        _onrefine()
-    } else if (!ready) {
-        console.log('Stream [OK]')
-        _onready()
-        ready = true
-        last_event = now()
-        setTimeout(heartbeat, 10000)
+function print(data) { // This function seems to be for handling non-trade messages or initial ready state
+    if (reconnecting) { // This was likely for UI refinement during reconnect attempts
+        _onrefine();
+    } else if (!ready) { // This was the old way of setting ready state
+        // 'ready' state is now set upon receiving subscription confirmation from proxy
+        // console.log('[wsx] Stream [OK] - (old ready logic)');
+        // _onready();
+        // ready = true;
+        // last_event = now();
+        // setTimeout(heartbeat, 10000); // Start heartbeat after ready
     }
-    reconnecting = false
+    // If reconnecting was true, it should be set to false after a successful connection.
+    // This is handled in ws.onopen and successful message receipt.
+    // reconnecting = false; // This might be too early or too late depending on context
 }
 
 function heartbeat() {
-    if (terminated) return
-    if (now() - last_event > 60000) {
-        console.log('No events for 60 seconds')
-        if (!reconnecting) reconnect()
-        setTimeout(heartbeat, 10000)
-    } else {
-        setTimeout(heartbeat, 1000)
-    }
-}
+    if (terminated) return;
 
-function terminate() {
-    if (ws && ws.readyState !== WebSocket.CLOSED) {
-        try {
-            terminated = true; // Set terminated before closing to prevent reconnection
-            ws.close();
-            console.log("WebSocket connection terminated");
-        } catch (e) {
-            console.log("Error closing WebSocket:", e);
+    if (now() - last_event > 60000) { // 60 seconds no events
+        console.warn('[wsx] No WebSocket events for 60 seconds. Attempting to reconnect.');
+        if (!reconnecting) {
+            reconnect();
         }
     }
-    
-    // Clear any pending reconnect timeout
+    // Schedule next heartbeat check regardless
+    // The original had different timeouts, simplifying to consistent check interval
+    setTimeout(heartbeat, 15000); // Check every 15 seconds
+}
+// Start heartbeat after a delay once module is loaded, if not already started by 'ready' logic
+// setTimeout(heartbeat, 15000); // Let's ensure it's started after initial connection attempt.
+
+function terminate() {
+    console.log("[wsx] Terminate called.");
+    terminated = true; // Set terminated flag immediately
+    ready = false;
+    reconnecting = false;
+
     if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
         reconnectTimeout = null;
     }
+
+    if (ws) {
+        try {
+            if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+                 ws.onopen = null; // Remove handlers
+                 ws.onmessage = null;
+                 ws.onerror = null;
+                 ws.onclose = null; // Prevent onclose from triggering reconnect
+                 ws.close(1000, "Client terminated connection"); // Normal closure
+                 console.log("[wsx] WebSocket connection explicitly closed.");
+            }
+        } catch (e) {
+            console.warn("[wsx] Error closing WebSocket during termination:", e.toString());
+        }
+        ws = null;
+    }
+    reconnectAttempts = 0; // Reset for future inits
     
-    terminated = true;
-    ready = false;
-    reconnecting = false;
-    reconnectAttempts = 0;
-    
-    // Reset to allow new connections
-    setTimeout(() => {
-        terminated = false;
-    }, 500);
+    // Do not automatically reset 'terminated' flag here. 
+    // It should stay true until a new 'init()' call.
 }
 
 export default {
