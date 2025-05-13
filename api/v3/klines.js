@@ -1,15 +1,15 @@
-// Serverless function to proxy requests to Binance API
-export default async function handler(req, res) {
-  // Set CORS headers for all responses
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  // Handle OPTIONS method for CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
+import { createClient } from 'binance-api-node';
+import cors from 'vercel-cors';
+
+// Create a CORS middleware that allows all origins
+const allowCors = cors({ 
+  origin: '*',
+  methods: ['GET', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+});
+
+// Export the handler wrapped in CORS middleware
+export default allowCors(async (req, res) => {
   try {
     // For debugging
     console.log('API endpoint hit: /api/v3/klines');
@@ -26,29 +26,28 @@ export default async function handler(req, res) {
       });
     }
 
-    // Construct the URL for Binance API
-    let binanceUrl = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}`;
-    
+    // Initialize the Binance client
+    // Note: API key and secret are optional for public endpoints like klines
+    const client = createClient({
+      // If you need authenticated endpoints, uncomment and set these from env vars
+      // apiKey: process.env.BINANCE_API_KEY,
+      // apiSecret: process.env.BINANCE_API_SECRET,
+    });
+
+    // Build options object for the API call
+    const options = {
+      symbol: symbol,
+      interval: interval
+    };
+
     // Add optional parameters if they exist
-    if (limit) binanceUrl += `&limit=${limit}`;
-    if (endTime) binanceUrl += `&endTime=${endTime}`;
+    if (limit) options.limit = parseInt(limit);
+    if (endTime) options.endTime = parseInt(endTime);
 
-    console.log(`Forwarding request to: ${binanceUrl}`);
+    console.log(`Fetching klines with options:`, options);
 
-    // Make the request to Binance
-    const response = await fetch(binanceUrl);
-    
-    // Check if the request was successful
-    if (!response.ok) {
-      console.error(`Binance API responded with status: ${response.status}`);
-      return res.status(response.status).json({ 
-        error: `Binance API error: ${response.statusText}`,
-        status: response.status
-      });
-    }
-
-    // Parse the response as JSON
-    const data = await response.json();
+    // Make the request using the Binance client
+    const data = await client.candles(options);
     console.log(`Success! Received ${data.length} data points`);
 
     // Send the response back to the client
@@ -57,4 +56,4 @@ export default async function handler(req, res) {
     console.error('API Error:', error.message);
     return res.status(500).json({ error: error.message });
   }
-}
+});
