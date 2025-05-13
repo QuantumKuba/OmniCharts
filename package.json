@@ -13,7 +13,7 @@
     "build:lib": "NODE_ENV=production BUILD_AS_LIB=true vite build && node ./types/build-script.cjs",
     "build-cdn": "vite build --config vite.cdn.config.js",
     "preview": "vite preview",
-    "vercel-build": "NODE_ENV=production vite build"
+    "vercel-build": "NODE_ENV=production vite build && cp -r pages dist/"
   },
   "main": "./dist/night-vision.js",
   "module": "./dist/night-vision.js",
