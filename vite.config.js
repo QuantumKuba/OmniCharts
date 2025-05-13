@@ -11,8 +11,8 @@ export default defineConfig({
   plugins: [
     banner({
       content:
-        `/* NightVisionCharts v${pkg.version} | License: MIT\n` +
-        ` © 2022 ChartMaster. All rights reserved */`,
+        `/* NightVision/OmniCharts v${pkg.version} | License: MIT\n` +
+        ` © 2022-2025 ChartMaster. All rights reserved */`,
       outDir: "../dist",
     }),
     svelte({
@@ -37,16 +37,19 @@ export default defineConfig({
     target: "es2018",
     outDir: "../dist",
     emptyOutDir: true,
-    lib: {
+    // Keep the library configuration for when building as a library
+    lib: process.env.BUILD_AS_LIB ? {
       entry: resolve(__dirname, "src/index.js"),
       name: "NightVision",
       fileName: "night-vision",
-    },
+    } : undefined,
     rollupOptions: {
+      // When not building as a library, use main.js as the entry point
+      input: process.env.BUILD_AS_LIB ? undefined : resolve(__dirname, "src/index.html"),
       output: {
         manualChunks: undefined,
       }
     },
-    minify: false,
+    minify: process.env.NODE_ENV === 'production',
   },
 });
