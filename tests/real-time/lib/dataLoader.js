@@ -273,10 +273,7 @@ class DataLoader {
                                         length3: 60, color3: "#0000FF",
                                     }
                                 },
-                                {name: "ZLEMA", type: "ZLEMA", props: {
-                                    length: 21,
-                                    color: "#FFA500", 
-                                }}
+                                {name: "ZLEMA", type: "ZLEMA" }
 
                             ],
                             overlays: [

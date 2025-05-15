@@ -10,6 +10,9 @@ prop('showCross', { type: 'boolean', def: true, label: 'Show Cross' });
 prop('colorFast', { type: 'color', def: '#FFA500', label: 'Fast Color' });
 prop('colorMedium', { type: 'color', def: '#00FFFF', label: 'Medium Color' });
 prop('colorSlow', { type: 'color', def: '#888888', label: 'Slow Color' });
+prop('signalSize', { type: 'integer', def: 7, label: 'Signal Size' });
+prop('buyColor', { type: 'color', def: '#08c65e', label: 'Buy Signal Color' });
+prop('sellColor', { type: 'color', def: '#e42633', label: 'Sell Signal Color' });
 prop('prec', { type: 'integer', def: autoPrec(), label: 'Precision' });
 
 // Define overlay settings
@@ -18,30 +21,17 @@ this.specs = {
     settings: { precision: $props.prec, zIndex: 0 }
 };
 
-// Helper function for plotting shapes
-this.plotshape = function(cond, settings) {
-    if (!cond) return;
-    
-    // Only store values when a condition is met - no array of undefined values
-    const signalData = [];
-    
-    const t = se.t;
-    const shape = {
-        time: t,
-        price: settings.location === 'belowbar' ? low[0] * 0.999 : high[0] * 1.001,
-        shape: settings.text || '▲',
-        color: settings.color || 'green',
-    };
-    
-    // Add this single point to our signals data
-    signalData.push([t, shape]);
-    
-    // Use Label overlay type for shapes - only passing data when a signal occurs
-    Label(signalData, {
-        name: `${settings.text || 'signal'}-${t}`,
-        color: settings.color || 'green'
-    });
-};
+// Store signals for drawing
+this.signals = [];
+
+// Draw arrow for crossovers/crossunders
+function drawArrow(ctx, x, y, dir, size) {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + size * dir * 0.63, y + size * dir);
+    ctx.lineTo(x - size * dir * 0.63, y + size * dir);
+    ctx.fill();
+}
 
 [UPDATE]
 
@@ -61,18 +51,17 @@ let base = $props.enableKalman === 'ON'
     ? kalmanFilter(src)
     : src;
 
-// Zero-Lag EMA implementation using standard library functions
-// First create lag-adjusted time series for each period
+// Zero-Lag EMA implementation
 const fastLag = Math.floor(($props.fast - 1) / 2);
 const mediumLag = Math.floor(($props.medium - 1) / 2);
 const slowLag = Math.floor(($props.slow - 1) / 2);
 
-// Create lag-adjusted time series (double the src minus the lagged src)
+// Create lag-adjusted time series
 let fastSrc = ts(0);
 let mediumSrc = ts(0); 
 let slowSrc = ts(0);
 
-// Calculate lag-adjusted values using the formula: 2 * src[0] - src[lag]
+// Calculate lag-adjusted values 
 fastSrc[0] = 2 * base[0] - base[fastLag];
 mediumSrc[0] = 2 * base[0] - base[mediumLag];
 slowSrc[0] = 2 * base[0] - base[slowLag];
@@ -82,35 +71,32 @@ const ma1_data = ema(fastSrc, $props.fast);
 const ma2_data = ema(mediumSrc, $props.medium);
 const ma3_data = ema(slowSrc, $props.slow);
 
-// Plot lines
-if (ma1_data !== undefined && ma1_data !== null) {
-    Spline(ma1_data, { 
-        name: `Fast ZLEMA (${$props.fast})`,
+// Create the overlay objects with proper color props
+Spline(ma1_data, { 
+    name: `Fast ZLEMA (${$props.fast})`,
+    props: {
         color: $props.colorFast,
-        lineWidth: 2,
-        skipNaN: true 
-    });
-}
+        lineWidth: 2
+    }
+});
 
-if (ma2_data !== undefined && ma2_data !== null) {
-    Spline(ma2_data, { 
-        name: `Medium ZLEMA (${$props.medium})`,
+Spline(ma2_data, { 
+    name: `Medium ZLEMA (${$props.medium})`,
+    props: {
         color: $props.colorMedium,
-        lineWidth: 2,
-        skipNaN: true 
-    });
-}
+        lineWidth: 2
+    }
+});
 
-if (ma3_data !== undefined && ma3_data !== null) {
-    Spline(ma3_data, { 
-        name: `Slow ZLEMA (${$props.slow})`,
+Spline(ma3_data, { 
+    name: `Slow ZLEMA (${$props.slow})`,
+    props: {
         color: $props.colorSlow,
-        lineWidth: 2,
-        skipNaN: true 
-    });
-}
+        lineWidth: 1
+    }
+});
 
-// Plot crosses if enabled and we have valid data
+// Track crossover signals in a custom overlay
 if ($props.showCross && ma1_data && ma2_data) {
     // Check for crossover (fast crosses above medium)
     const isCrossover = ma1_data[0] > ma2_data[0] && ma1_data[1] <= ma2_data[1];
@@ -118,17 +104,23 @@ if ($props.showCross && ma1_data && ma2_data) {
     // Check for crossunder (fast crosses below medium)
     const isCrossunder = ma1_data[0] < ma2_data[0] && ma1_data[1] >= ma2_data[1];
     
-    // Crossover - buy signal
-    this.plotshape(isCrossover, {
-        text: '▲', 
-        color: 'green',
-        location: 'belowbar'
-    });
-    
-    // Crossunder - sell signal
-    this.plotshape(isCrossunder, {
-        text: '▼',
-        color: 'red',
-        location: 'abovebar'
-    });
+    // Store signals for drawing
+    if (isCrossover || isCrossunder) {
+        let signal = [
+            se.t,  // timestamp
+            isCrossover ? 1 : -1,  // direction (1 for buy, -1 for sell)
+            isCrossover ? ma1_data[0] : ma2_data[0]  // price level
+        ];
+        
+        // Use the ArrowTrades overlay directly, which has built-in arrow drawing
+        ArrowTrades([signal], {
+            name: "ZLEMA Signals",
+            props: {
+                buyColor: $props.buyColor,
+                sellColor: $props.sellColor,
+                size: $props.signalSize,
+                showLabels: false
+            }
+        });
+    }
 }
