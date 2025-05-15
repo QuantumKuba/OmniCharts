@@ -1,4 +1,3 @@
-
 // Script std-lib (built-in functions)
 
 import se from './script_engine.js'
@@ -644,6 +643,35 @@ export default class ScriptStd {
             this.sma(src, len, id)[0] :
             a * src[0] + (1 - a) * this.nz(ema[1])
         return ema
+    }
+
+    /** Zero-Lag EMA */
+    zlema(src, len, _id) {
+        let id    = this._tsid(_id, `zlema(${len})`)
+        let lag   = Math.round((len - 1) / 2)
+        let sh    = this.offset(src, lag, id+'s')
+        let diff  = this.sub(src, sh,    id+'d')
+        let input = this.add(src, diff,  id+'i')
+        return this.ema(input, len,       id+'e')
+    }
+
+    /** Ehlers/Kalman-style adaptive filter */
+    kalmanFilter(src, _id) {
+        let id = this._tsid(_id, `kalman`)
+        // velocity term
+        let v1 = this.ts(0, id+'1', src.__tf__)
+        v1[0] = 0.2 * (src[0] - (src[1]||0)) + 0.8 * this.nz(v1[1], 0)
+        // volatility term
+        let tr = this.tr(false, id+'t', src.__tf__)[0]
+        let v2 = this.ts(0, id+'2', src.__tf__)
+        v2[0] = 0.1 * tr + 0.8 * this.nz(v2[1], 0)
+        // compute alpha
+        let λ     = Math.abs(v1[0]/(v2[0]||1e-8))
+        let alpha = (-λ*λ + Math.sqrt(λ*λ*λ*λ + 16*λ*λ)) / 8
+        // filtered output
+        let v3 = this.ts(0, id+'3', src.__tf__)
+        v3[0] = alpha * src[0] + (1 - alpha) * this.nz(v3[1], src[0])
+        return v3
     }
 
     /** Shortcut for Math.exp()

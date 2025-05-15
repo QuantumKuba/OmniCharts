@@ -1,0 +1,139 @@
+// Label overlay for displaying text and shapes on charts
+
+[OVERLAY name=Label, ctx=Canvas, version=1.0.0]
+
+prop('color', { type: 'color', def: '#ffffff' })
+prop('textColor', { type: 'color', def: '#000000' })
+prop('size', { type: 'integer', def: 12 })
+prop('offset', { type: 'integer', def: 0 })
+prop('borderRadius', { type: 'integer', def: 3 })
+prop('borderWidth', { type: 'integer', def: 1 })
+prop('borderColor', { type: 'color', def: '#000000' })
+prop('textAlign', { type: 'string', def: 'center' })
+prop('zIndex', { type: 'integer', def: 100 })
+
+// Draw function (called on each update)
+draw(ctx) {
+    const layout = $core.layout
+    const data = $core.data // Full dataset
+    const view = $core.view // Visible view
+    
+    // Filter the data for only points that contain labels
+    // Unlike other overlays, Label should only draw at specific timestamps
+    for (var i = view.i1, n = view.i2; i <= n; i++) {
+        let d = data[i]
+        if (!d || d.length < 2 || !d[1]) continue
+        
+        let shape = d[1]
+        if (typeof shape === 'string') {
+            // Simple string label
+            drawSimpleLabel(ctx, layout, d[0], shape, $props, i)
+        } else if (typeof shape === 'object') {
+            // Object with shape configuration
+            drawShapeLabel(ctx, layout, d[0], shape, $props, i)
+        }
+    }
+}
+
+// Helper function for drawing simple text labels
+function drawSimpleLabel(ctx, layout, time, text, props, i) {
+    let x = layout.ti2x(time, i)
+    let y = layout.value2y(props.price || 0)
+    
+    // Set up text rendering
+    ctx.font = `${props.size}px Monospace`
+    ctx.textAlign = props.textAlign
+    ctx.fillStyle = props.color
+    ctx.textBaseline = 'middle'
+    
+    // Draw the label
+    ctx.fillText(text, x, y)
+}
+
+// Helper function for drawing shaped labels
+function drawShapeLabel(ctx, layout, time, shape, props, i) {
+    // Get coordinates on screen
+    let x = layout.ti2x(time, i)
+    let y = layout.value2y(shape.price || 0)
+    
+    // Adjust for offset if specified
+    y += shape.offset || props.offset || 0
+    
+    const text = shape.shape || shape.text || ''
+    const textColor = shape.textColor || props.textColor
+    const bgColor = shape.color || props.color
+    const borderColor = shape.borderColor || props.borderColor
+    const borderWidth = shape.borderWidth !== undefined ? shape.borderWidth : props.borderWidth
+    const borderRadius = shape.borderRadius !== undefined ? shape.borderRadius : props.borderRadius
+    const size = shape.size || props.size
+    
+    // Set up text rendering
+    ctx.font = `${size}px Monospace`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    
+    // Measure text to create background
+    const metrics = ctx.measureText(text)
+    const textHeight = size * 1.2
+    const textWidth = metrics.width * 1.2
+    
+    const padding = size * 0.4
+    
+    // Draw background with border radius
+    ctx.fillStyle = bgColor
+    ctx.beginPath()
+    roundRect(
+        ctx,
+        x - textWidth/2 - padding,
+        y - textHeight/2 - padding,
+        textWidth + padding*2,
+        textHeight + padding*2,
+        borderRadius
+    )
+    ctx.fill()
+    
+    // Draw border if width > 0
+    if (borderWidth > 0) {
+        ctx.strokeStyle = borderColor
+        ctx.lineWidth = borderWidth
+        ctx.stroke()
+    }
+    
+    // Draw text
+    ctx.fillStyle = textColor
+    ctx.fillText(text, x, y)
+}
+
+// Helper function to draw rounded rectangles
+function roundRect(ctx, x, y, width, height, radius) {
+    if (radius === 0) {
+        ctx.rect(x, y, width, height)
+        return
+    }
+    
+    radius = Math.min(radius, Math.min(width, height) / 2)
+    
+    ctx.moveTo(x + radius, y)
+    ctx.lineTo(x + width - radius, y)
+    ctx.arcTo(x + width, y, x + width, y + radius, radius)
+    ctx.lineTo(x + width, y + height - radius)
+    ctx.arcTo(x + width, y + height, x + width - radius, y + height, radius)
+    ctx.lineTo(x + radius, y + height)
+    ctx.arcTo(x, y + height, x, y + height - radius, radius)
+    ctx.lineTo(x, y + radius)
+    ctx.arcTo(x, y, x + radius, y, radius)
+}
+
+// Not affecting the y-range
+yRange() => null
+
+// Legend formatter, Array of [value, color] pairs
+legend(x) {
+    if (!x[1]) return []
+    
+    if (typeof x[1] === 'string') {
+        return [[x[1], $props.color]]
+    } else {
+        return [[x[1].text || x[1].shape || '', x[1].color || $props.color]]
+    }
+}
