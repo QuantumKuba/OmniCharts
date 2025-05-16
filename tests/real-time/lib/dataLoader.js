@@ -266,13 +266,13 @@ class DataLoader {
                         {
                             scripts: [
                                 { name: "BB", type: "BB", data: finalData, props: { length: 21, stddev: 2, color: "#2cc6c9ab" } },
-                                { name: "TrippleEMA", type: "TrippleEMA" ,
-                                    props : {
-                                        length1: 9, color1: "#FF0000",
-                                        length2: 21, color2: "#00FF00",
-                                        length3: 60, color3: "#0000FF",
-                                    }
-                                },
+                                // { name: "TrippleEMA", type: "TrippleEMA" ,
+                                //     props : {
+                                //         length1: 9, color1: "#FF0000",
+                                //         length2: 21, color2: "#00FF00",
+                                //         length3: 60, color3: "#0000FF",
+                                //     }
+                                // },
                                 {name: "ZLEMA", type: "ZLEMA" }
 
                             ],
