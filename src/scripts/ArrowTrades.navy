@@ -1,4 +1,3 @@
-
 // Navy ~ 0.2-lite
 
 // <ds>Stacked arrow trades</ds>
@@ -9,30 +8,28 @@
 
 [OVERLAY name=ArrowTrades, ctx=Canvas, version=1.0.0]
 
-prop('buyColor', {  type: 'color', def: '#08c65e' })
-prop('sellColor', {  type: 'color', def: '#e42633' })
-prop('size', {  type: 'number', def: 7 })
-prop('showLabels', {  type: 'boolean', def: true })
-prop('markerOutline', {  type: 'boolean', def: true })
-prop('outlineWidth', {  type: 'number', def: 4 })
+prop('buyColor', { type: 'color', def: '#08c65e' })
+prop('sellColor', { type: 'color', def: '#e42633' })
+prop('sizeFactor', { type: 'number', def: 0.1 }) // Increased from 0.1 to 0.2
+prop('minSize', { type: 'number', def: 10 }) // Minimum size in pixels
+prop('showLabels', { type: 'boolean', def: true })
+prop('markerOutline', { type: 'boolean', def: true })
+prop('outlineWidth', { type: 'number', def: 4 })
 
-// Draw function (called on each update)
-// Library provides a lot of useful variables to make
-// overlays ($core in the main collection)
 draw(ctx) {
     ctx.lineWidth = $props.outlineWidth
     const layout = $core.layout
-    const data = $core.data // Full dataset
-    const view = $core.view // Visible view
+    const data = $core.data
+    const view = $core.view
 
     // Fill sell trades
-    ctx.fillStyle = $props.buyColor
+    ctx.fillStyle = $props.sellColor
     ctx.beginPath()
     let lbls1 = iterTrades(ctx, view, data, layout, -1)
     ctx.fill()
 
     // Fill buy trades
-    ctx.fillStyle = $props.sellColor
+    ctx.fillStyle = $props.buyColor
     ctx.beginPath()
     let lbls2 = iterTrades(ctx, view, data, layout, 1)
     ctx.fill()
@@ -44,36 +41,43 @@ draw(ctx) {
         let all = [...lbls1, ...lbls2]
         drawLabels(ctx, view, layout, all)
     }
-
 }
 
-// Iter through arcs
 iterTrades(ctx, view, data, layout, dir) {
-    let lables = []
+    let labels = []
     for (var i = view.i1, n = view.i2; i <= n; i++) {
         let p = data[i]
         let ohlc = layout.ohlc(p[0])
         if (!ohlc) continue
         let x = layout.ti2x(p[0], i)
-        if (dir > 0) {
-            var y = layout.value2y(ohlc[1])
-        } else {
-            var y = layout.value2y(ohlc[2])
-        }
+
+        // Position: buy at bottom (low), sell at top (high)
+        let y = dir > 0 ? layout.value2y(ohlc[2]) : layout.value2y(ohlc[1])
+
         for (var k = 1; k < p.length; k++) {
-            if (Math.sign(p[k][0]) === dir) continue
-            let size = $props.size
-            if (p[k][2]) size *= 1.5
-            let yk = y - dir * (15 * (k - 1) + 10)
+            let signal = p[k]
+            if (Math.sign(signal[0]) !== dir) continue
+
+            // Use candle height to calculate size and offset
+            let candleHeight = layout.value2y(ohlc[3]) - layout.value2y(ohlc[2]) // High - Low
+            let size = Math.max(candleHeight * $props.sizeFactor, $props.minSize) // Ensure minimum size
+            if (signal[2]) size *= 1.5 // Apply "big" multiplier
+
+            // Vertical offset: 20% of candle height
+            let offset = candleHeight * -0.2
+            let yk = y + dir * offset
+
             let align = dir < 0 ? 'right' : 'left'
-            let dy = p[k][2] ? - dir * 1 : 0
-            if (p[k][1]) {
-                lables.push([ x + 10 * dir, yk + dy, p[k][1], align])
+            let dy = signal[2] ? dir * 1 : 0
+
+            if (signal[1]) {
+                labels.push([x + 10 * dir, yk + dy, signal[1], align])
             }
-            drawArrow(ctx, x, yk, -dir, size)
+
+            drawArrow(ctx, x, yk, dir, size)
         }
     }
-    return lables
+    return labels
 }
 
 drawArrow(ctx, x, y, dir, size) {
@@ -82,20 +86,16 @@ drawArrow(ctx, x, y, dir, size) {
     ctx.lineTo(x - size * dir * 0.63, y + size * dir)
 }
 
-// Draw simple lables
-drawLabels(ctx, view, layout, lables) {
-    for (var l of lables) {
+drawLabels(ctx, view, layout, labels) {
+    for (var l of labels) {
         ctx.textAlign = l[3]
         let dy = l[3] === 'right' ? 7 : 0
         ctx.fillText(l[2], l[0], l[1] + dy)
     }
 }
 
-// Not affecting the y-range
 yRange() => null
 
-// Legend formatter, Array of [value, color] pairs
-// x represents one data item e.g. [<time>, <value>]
 legend(x) {
     let items = []
     for (var i = 1; i < x.length; i++) {

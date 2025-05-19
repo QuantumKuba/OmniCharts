@@ -1,4 +1,18 @@
-[INDICATOR name=ZLEMA, version=1.0.0]
+// Navy ~ 0.2-lite
+
+// <ds>Zero-Lag Exponential Moving Average (ZLEMA) Indicator</ds>
+// Plots Fast, Medium, and Slow ZLEMA lines. Optionally uses a Kalman filter
+// on the source and shows crossover signals between Fast and Medium ZLEMA.
+//
+// Key Configuration Properties:
+// <src> :: Input data source for calculations (e.g., 'close', 'hlc3').
+// <enableKalman> :: 'ON' to apply Kalman filter to source, 'OFF' otherwise.
+// <fast> :: Period for the Fast ZLEMA.
+// <medium> :: Period for the Medium ZLEMA.
+// <slow> :: Period for the Slow ZLEMA.
+// <showCross> :: true to display buy/sell signals on Fast/Medium ZLEMA crossover/crossunder, false otherwise.
+
+[INDICATOR name=ZLEMA,ctx=Canvas, version=1.0.0]
 
 // Input properties
 prop('src', { type: 'source', def: 'hlc3', label: 'Source' });
@@ -21,17 +35,6 @@ this.specs = {
     settings: { precision: $props.prec, zIndex: 0 }
 };
 
-// Store signals for drawing
-this.signals = [];
-
-// Draw arrow for crossovers/crossunders
-function drawArrow(ctx, x, y, dir, size) {
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + size * dir * 0.63, y + size * dir);
-    ctx.lineTo(x - size * dir * 0.63, y + size * dir);
-    ctx.fill();
-}
 
 [UPDATE]
 
@@ -106,21 +109,31 @@ if ($props.showCross && ma1_data && ma2_data) {
     
     // Store signals for drawing
     if (isCrossover || isCrossunder) {
-        let signal = [
-            se.t,  // timestamp
-            isCrossover ? 1 : -1,  // direction (1 for buy, -1 for sell)
-            isCrossover ? ma1_data[0] : ma2_data[0]  // price level
+        // Create properly formatted signal for ArrowTrades
+        // Format must be an array of signals in the format [[timestamp, [dir, label, big]]]
+        const direction = isCrossover ? 1 : -1;  // 1 for buy, -1 for sell
+        const label = isCrossover ? "BUY" : "SELL";
+        const big = false;  // Can set to true for emphasized signals if needed
+        
+        // Create an array with a single signal
+        const signals = [
+            se.t, [direction, label, big]  // Wrap in an extra array
         ];
         
-        // Use the ArrowTrades overlay directly, which has built-in arrow drawing
-        ArrowTrades([signal], {
+        // Pass the signals array to ArrowTrades
+        ArrowTrades(signals,{
             name: "ZLEMA Signals",
             props: {
                 buyColor: $props.buyColor,
                 sellColor: $props.sellColor,
                 size: $props.signalSize,
-                showLabels: false
+                showLabels: false,
+                markerOutline: true,
+                outlineWidth: 6
+            }, 
+            settings: {
+                zIndex: 200
             }
-        });
+        } );
     }
 }

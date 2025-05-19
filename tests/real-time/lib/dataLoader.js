@@ -273,8 +273,7 @@ class DataLoader {
                                 //         length3: 60, color3: "#0000FF",
                                 //     }
                                 // },
-                                {name: "ZLEMA", type: "ZLEMA" }
-
+                                {name: "ZLEMA", type: "ZLEMA" , data: finalData }
                             ],
                             overlays: [
                                 { 
@@ -288,7 +287,29 @@ class DataLoader {
                                         symbol: this.SYM,
                                         timeFrame: this.TF
                                     } 
-                                },
+                                },         
+                                // {
+                                //     name: "ArrowTrades – Sell Test",
+                                //     type: "ArrowTrades",
+                                //       data: [
+                                //             // 1) Sell at the latest candle
+                                //             [ finalData[finalData.length - 1][0], [-1, "SELL_NOW", true] ],
+                                //             // 2) Sell 10 minutes before the latest candle
+                                //             [ finalData[finalData.length - 1][0] - 10 * 60 * 1000, [-1, "SELL_PAST", false] ]
+                                //            ],
+                                //     props: {
+                                //       sellColor: "#e42633",
+                                //       buyColor: "#08c65e",
+                                //       size: 10,
+                                //       showLabels: true,
+                                //       markerOutline: true,
+                                //       outlineWidth: 2
+                                //     },
+                                //     settings: {
+                                //       zIndex: 200
+                                //     }
+                                // },
+                                
                                 { name: "RangeTool", type: "RangeTool", drawingTool: true, data: [], props: {}, settings: { zIndex: 1000 } },
                                 { name: "LineTool", type: "LineTool", drawingTool: true, data: [], props: {}, settings: { zIndex: 1000 } },
                                 { name: "LineToolHorizontalRay", type: "LineToolHorizontalRay", drawingTool: true, data: [], props: {}, settings: { zIndex: 1000 } },
