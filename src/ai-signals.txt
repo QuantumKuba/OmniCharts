@@ -1,4 +1,7 @@
 
+TODO:
+- fix triangles drawn with zlema not being red for sell signals, paste the scriptagain
+
 Goal:
 - Implement a web socket / api system that extends our current aplications capabilities to receive AI generated (third party script signals from third party trading strategies) 
 - Utilise the current scripts such as ArrowTrades.navy and Trades.navy and keep a clear structure of the data format that we should be sending and receiving through the API / websocket making sure we can track the trades through their lifetime, their Stop loss price points and take profit price points also taking under the consideration that we can have strategies with trailing stop loss and trailing take profit. We shall make sure that the trade entries are aproprietely drawn onto the chart where the trade entry and trade exit are represented by arrows or triangles of apropriate customizable colors. Take Profit and Stop Loss lines should be represented by a dashed line, that only continus on the x axis thorugh the lifetime of a trade, when the trade is closed the lines should not extend on the x asis any more. 
