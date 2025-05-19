@@ -53,7 +53,7 @@ else src = close;
 let base = $props.enableKalman === 'ON' 
     ? kalmanFilter(src)
     : src;
-
+base = ts((base[0] !== null ? Math.round(base[0] * 100) / 100 : 0));
 // Zero-Lag EMA implementation
 const fastLag = Math.floor(($props.fast - 1) / 2);
 const mediumLag = Math.floor(($props.medium - 1) / 2);
@@ -70,9 +70,9 @@ mediumSrc[0] = 2 * base[0] - base[mediumLag];
 slowSrc[0] = 2 * base[0] - base[slowLag];
 
 // Apply EMA to the lag-adjusted time series
-const ma1_data = ema(fastSrc, $props.fast);
-const ma2_data = ema(mediumSrc, $props.medium);
-const ma3_data = ema(slowSrc, $props.slow);
+const ma1_data = ema(fastSrc, $props.fast).map(x => x !== null ? Math.round(x * 100) / 100 : 0);
+const ma2_data = ema(mediumSrc, $props.medium).map(x => x !== null ? Math.round(x * 100) / 100 : 0);
+const ma3_data = ema(slowSrc, $props.slow).map(x => x !== null ? Math.round(x * 100) / 100 : 0);
 
 // Create the overlay objects with proper color props
 Spline(ma1_data, { 
