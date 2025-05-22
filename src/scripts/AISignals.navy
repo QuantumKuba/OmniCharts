@@ -1,0 +1,194 @@
+// Navy ~0.2-lite (or appropriate version based on your library)
+
+[OVERLAY name=AISignals, ctx=Canvas, version=1.0.2]
+
+// Define properties for the overlay
+prop('buyColor', { type: 'color', def: '#08c65e' })       // Color for buy signals/arrows
+prop('sellColor', { type: 'color', def: '#e42633' })      // Color for sell signals/arrows
+prop('slColor', { type: 'color', def: '#FFA500' })        // Color for stop-loss lines
+prop('tpColor', { type: 'color', def: '#00FF00' })        // Color for take-profit lines
+prop('closedColor', { type: 'color', def: '#888888' })    // Color for closed trade markers/lines
+prop('arrowSize', { type: 'number', def: 10 })            // Base size of the arrow
+prop('lineWidth', { type: 'number', def: 1 })             // Width of SL/TP lines
+prop('lineDash', { type: 'array', def: [5, 5] })          // Dash pattern for SL/TP lines, e.g., [5, 5] for 5px line, 5px gap
+prop('markerOutline', { type: 'boolean', def: true })     // Outline for arrows
+prop('outlineWidth', { type: 'number', def: 2 })          // Width of the arrow outline
+prop('outlineColor', { type: 'color', def: '#000000' })   // Color for the arrow outline
+
+// NOTE: For this overlay to display signals, its '$core.data' array
+// must be populated by the client-side JavaScript. This typically involves:
+// 1. Connecting to the WebSocket server.
+// 2. Listening for messages with 'type: "ai_signal"'.
+// 3. When an 'ai_signal' is received, find this 'AISignals' overlay instance
+//    on the chart and update its 'data' property with the new trade data.
+//    Example: chart.updateOverlayData('AISignals_paneId_overlayId', newTradeObjectOrArray);
+//    If AISignals.navy shows no trades, check client-side JS for WebSocket message handling
+//    and data updates to this overlay.
+
+// Helper function to draw an arrow
+// y is the entryPrice mapped to canvas coordinates.
+// For BUY: arrow base is at y, tip is at y - size (points UP)
+// For SELL: arrow base is at y, tip is at y + size (points DOWN)
+this.drawArrow = (ctx, x, y, size, direction, color) => {
+    ctx.beginPath();
+    ctx.fillStyle = color;
+
+    let tipY;
+    let baseCorner1X, baseCorner1Y;
+    let baseCorner2X, baseCorner2Y;
+
+    const arrowWidthFactor = 0.6; // Controls the width of the arrow base relative to its height (size)
+
+    if (direction === 'buy') { // Arrow points UP
+        tipY = y - size;
+        baseCorner1X = x - size * arrowWidthFactor;
+        baseCorner1Y = y;
+        baseCorner2X = x + size * arrowWidthFactor;
+        baseCorner2Y = y;
+        ctx.moveTo(x, tipY); // Tip
+        ctx.lineTo(baseCorner1X, baseCorner1Y); // Base corner 1
+        ctx.lineTo(baseCorner2X, baseCorner2Y); // Base corner 2
+    } else { // Arrow points DOWN (direction === 'sell')
+        tipY = y + size;
+        baseCorner1X = x - size * arrowWidthFactor;
+        baseCorner1Y = y;
+        baseCorner2X = x + size * arrowWidthFactor;
+        baseCorner2Y = y;
+        ctx.moveTo(x, tipY); // Tip
+        ctx.lineTo(baseCorner1X, baseCorner1Y); // Base corner 1
+        ctx.lineTo(baseCorner2X, baseCorner2Y); // Base corner 2
+    }
+    ctx.closePath();
+
+    if ($props.markerOutline) {
+        ctx.strokeStyle = $props.outlineColor;
+        ctx.lineWidth = $props.outlineWidth;
+        ctx.stroke();
+    }
+    ctx.fill();
+}
+
+// Helper function to draw a dashed line
+this.drawDashedLine = (ctx, x1, y1, x2, y2, color, lineWidth, dashArray) => {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    if (dashArray && ctx.setLineDash) {
+        ctx.setLineDash(dashArray);
+    }
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    if (dashArray && ctx.setLineDash) {
+        ctx.setLineDash([]); // Reset line dash
+    }
+}
+
+// Main draw function
+draw(ctx) {
+    const layout = $core.layout;
+    const trades = $core.data; // Expects an array of trade objects
+
+    // Log current data for debugging
+    if (trades && trades.length > 0) {
+        // console.log('[AISignals] Drawing with data:', JSON.parse(JSON.stringify(trades)));
+    } else if (!trades || trades.length === 0) {
+        // console.log('[AISignals] No trade data to draw. $core.data is empty or undefined.');
+    }
+
+    if (!trades || !layout || !Array.isArray(trades)) {
+        return;
+    }
+
+    for (const trade of trades) {
+        if (!trade || typeof trade.entryPrice !== 'number' || typeof trade.entryTime !== 'number') {
+            // console.warn('[AISignals] Invalid trade object:', trade);
+            continue;
+        }
+
+        const entryX = layout.ti2x(trade.entryTime);
+        const entryY = layout.value2y(trade.entryPrice);
+
+        // Determine color and arrow direction
+        const isBuy = trade.direction === 'buy' || trade.direction === 'long'; // Accommodate 'long'
+        const isSell = trade.direction === 'sell' || trade.direction === 'short'; // Accommodate 'short'
+        
+        let entryColor;
+        let arrowDirection;
+
+        if (isBuy) {
+            entryColor = $props.buyColor;
+            arrowDirection = 'buy';
+        } else if (isSell) {
+            entryColor = $props.sellColor;
+            arrowDirection = 'sell';
+        } else {
+            // console.warn('[AISignals] Unknown trade direction:', trade.direction);
+            continue; // Skip if direction is not recognized
+        }
+
+        // 1. Draw Entry Arrow
+        // Only draw if within visible x-range (y-range check is implicit by layout.value2y)
+        if (entryX >= layout.xStart && entryX <= layout.xEnd && entryY >= layout.yStart && entryY <= layout.yEnd) { // Added y-check
+             this.drawArrow(ctx, entryX, entryY, $props.arrowSize, arrowDirection, entryColor);
+        }
+
+        // 2. Draw SL and TP lines
+        if (trade.status === 'open') {
+            if (trade.stopLoss && typeof trade.stopLoss === 'number') {
+                const slY = layout.value2y(trade.stopLoss);
+                // Ensure the line is drawn only if entry is visible, extend to edge of screen
+                if (entryX <= layout.xEnd) { // Draw if entry is to the left or on screen
+                    const startXDraw = Math.max(entryX, layout.xStart);
+                     this.drawDashedLine(ctx, startXDraw, slY, layout.xEnd, slY, $props.slColor, $props.lineWidth, $props.lineDash);
+                }
+            }
+            if (trade.takeProfit && typeof trade.takeProfit === 'number') {
+                const tpY = layout.value2y(trade.takeProfit);
+                if (entryX <= layout.xEnd) {
+                    const startXDraw = Math.max(entryX, layout.xStart);
+                    this.drawDashedLine(ctx, startXDraw, tpY, layout.xEnd, tpY, $props.tpColor, $props.lineWidth, $props.lineDash);
+                }
+            }
+        } else if (trade.exitTime && typeof trade.exitPrice === 'number') {
+            // For closed trades
+            const exitX = layout.ti2x(trade.exitTime);
+            const exitY = layout.value2y(trade.exitPrice);
+
+            // Draw exit marker (e.g., a small circle)
+            if (exitX >= layout.xStart && exitX <= layout.xEnd) {
+                ctx.beginPath();
+                ctx.fillStyle = $props.closedColor;
+                ctx.strokeStyle = $props.outlineColor;
+                ctx.lineWidth = $props.outlineWidth / 2;
+                ctx.arc(exitX, exitY, $props.arrowSize / 1.5, 0, Math.PI * 2);
+                if ($props.markerOutline) ctx.stroke();
+                ctx.fill();
+            }
+
+            // Draw SL and TP lines only up to the exit time, if exit is visible
+            const displayExitX = Math.min(exitX, layout.xEnd);
+            const displayEntryX = Math.max(entryX, layout.xStart);
+
+            if (displayEntryX < displayExitX) { // Only draw if the segment has positive length on screen
+                if (trade.stopLoss && typeof trade.stopLoss === 'number') {
+                    const slY = layout.value2y(trade.stopLoss);
+                    this.drawDashedLine(ctx, displayEntryX, slY, displayExitX, slY, $props.slColor, $props.lineWidth, $props.lineDash);
+                }
+                if (trade.takeProfit && typeof trade.takeProfit === 'number') {
+                    const tpY = layout.value2y(trade.takeProfit);
+                    this.drawDashedLine(ctx, displayEntryX, tpY, displayExitX, tpY, $props.tpColor, $props.lineWidth, $props.lineDash);
+                }
+            }
+        }
+    }
+}
+
+// This overlay does not define its own yRange, so it uses the pane's auto-scaled range.
+yRange() => null;
+
+// Legend can be simple or show info about the last trade if desired.
+// For now, keeping it minimal.
+legend(x) {
+  return null; 
+}

@@ -19,6 +19,8 @@ import NoDataStub from './NoDataStub.svelte'
 import Toolbar from "./Toolbar.svelte"
 import TimeframeToolbar from "./TimeframeToolbar.svelte"
 import Heatmap from "../core/primitives/heatmap.js"
+import { trades } from '../services/signalService.js';
+import { derived } from 'svelte/store';
 
 export let props = {}
 // export let timeframeToolbarPosition = 'top' // top or bottom
@@ -74,6 +76,31 @@ $:chartProps = Object.assign(
 
 // Add event dispatcher to forward events to parent (App.svelte)
 const dispatch = createEventDispatcher();
+
+// Group incoming signal events by trade id to get open and close data
+const tradesGrouped = derived(trades, $trades => {
+    const map = new Map();
+    for (const s of $trades) {
+        if (!map.has(s.id)) {
+            map.set(s.id, { id: s.id, entryTime: null, entryPrice: 0, stopLoss: 0, takeProfit: 0, confidence: 0, strategy: '', openSignal: null, closeSignal: null });
+        }
+        const record = map.get(s.id);
+        if (s.eventType === 'open') {
+            record.openSignal = s;
+            record.entryTime = s.entryTime;
+            record.entryPrice = s.entryPrice;
+            record.stopLoss = s.stopLoss;
+            record.takeProfit = s.takeProfit;
+            record.confidence = s.confidence;
+            record.strategy = s.strategy;
+        } else if (s.eventType === 'close') {
+            record.closeSignal = s;
+            record.exitTime = s.entryTime;
+            record.exitPrice = s.entryPrice;
+        }
+    }
+    return Array.from(map.values());
+});
 
 // EVENT INTEFACE
 events.on('chart:cursor-changed', onCursorChanged)
@@ -285,6 +312,42 @@ function onSymbolChanged() {
             />
             {/each}
             <Botbar props={chartProps} {layout}/>
+
+            <!-- Trade signals overlay -->
+            <svg class="trade-overlay" style="position:absolute; top:37px; left:0; width:100%; height:calc(100% - 37px); pointer-events:none;">
+                {#each $tradesGrouped as trade}
+                    {#if trade.openSignal}
+                        <!-- Entry marker -->
+                        <polygon points="{layout.grids[0].time2x(trade.entryTime)},{layout.grids[0].value2y(trade.entryPrice) - 8} {layout.grids[0].time2x(trade.entryTime) - 5},{layout.grids[0].value2y(trade.entryPrice) + 5} {layout.grids[0].time2x(trade.entryTime) + 5},{layout.grids[0].value2y(trade.entryPrice) + 5}"
+                            fill="green" stroke="white" stroke-width="1">
+                            <title>Open: {trade.entryPrice}\nConfidence: {trade.confidence}\nStrategy: {trade.strategy}</title>
+                        </polygon>
+                        <!-- SL line -->
+                        <line x1={layout.grids[0].time2x(trade.entryTime)}
+                              y1={layout.grids[0].value2y(trade.stopLoss)}
+                              x2={trade.closeSignal ? layout.grids[0].time2x(trade.exitTime) : layout.grids[0].width}
+                              y2={layout.grids[0].value2y(trade.stopLoss)}
+                            stroke="red" stroke-width="1" stroke-dasharray="4,4">
+                            <title>Stop Loss: {trade.stopLoss}</title>
+                        </line>
+                        <!-- TP line -->
+                        <line x1={layout.grids[0].time2x(trade.entryTime)}
+                              y1={layout.grids[0].value2y(trade.takeProfit)}
+                              x2={trade.closeSignal ? layout.grids[0].time2x(trade.exitTime) : layout.grids[0].width}
+                              y2={layout.grids[0].value2y(trade.takeProfit)}
+                            stroke="blue" stroke-width="1" stroke-dasharray="4,4">
+                            <title>Take Profit: {trade.takeProfit}</title>
+                        </line>
+                        {#if trade.closeSignal}
+                            <!-- Exit marker -->
+                            <polygon points="{layout.grids[0].time2x(trade.exitTime)},{layout.grids[0].value2y(trade.exitPrice) + 8} {layout.grids[0].time2x(trade.exitTime) - 5},{layout.grids[0].value2y(trade.exitPrice) - 5} {layout.grids[0].time2x(trade.exitTime) + 5},{layout.grids[0].value2y(trade.exitPrice) - 5}"
+                                fill="red" stroke="white" stroke-width="1">
+                                <title>Close: {trade.exitPrice}\nPnL: {(trade.exitPrice - trade.entryPrice).toFixed(2)}</title>
+                            </polygon>
+                        {/if}
+                    {/if}
+                {/each}
+            </svg>
         </div>
     {:else}
         <NoDataStub {props}/>

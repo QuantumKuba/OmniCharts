@@ -1,7 +1,7 @@
 <!-- App.svelte -->
 <script>
     import { NightVision } from "./index.js";
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
 
     import TestStack from "../tests/testStack.js";
 
@@ -35,6 +35,8 @@
     import heatmapScript from "./scripts/heatmap.navy";
     import ZLEMA from "./scripts/indicators/ZLEMA.navy";
     import SymbolSidebar from "./components/SymbolSidebar.svelte";
+
+    import signalService, { sendTestSignal } from './services/signalService.js';
 
     // Initialize the test stack and charting instance
     let stack = new TestStack();
@@ -628,6 +630,26 @@
         window.stack = stack;
         // Expose the symbol change handler so it can be called from TimeframeToolbar
         window.handleSymbolChange = handleSymbolChange;
+
+        // Initialize signalService with current symbol filter
+        signalService.init([currentSymbol]);
+
+        // Add keybinding for debugging: press 'T' to send a test signal at current price
+        const debugKeyHandler = (e) => {
+            if (e.key === 'T' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                const mainOv = chart.hub.mainOv;
+                if (mainOv && mainOv.data && mainOv.data.length) {
+                    const lastCandle = mainOv.data[mainOv.data.length - 1];
+                    const price = lastCandle[4];
+                    sendTestSignal({ symbol: currentSymbol, timeframe: currentTimeframe, entryPrice: price });
+                    console.log('[App] Sent test signal at price', price);
+                }
+            }
+        };
+        window.addEventListener('keydown', debugKeyHandler);
+        onDestroy(() => {
+            window.removeEventListener('keydown', debugKeyHandler);
+        });
 
         // Group and execute test suites
         stack.setGroup("data-sync");
